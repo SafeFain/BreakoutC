@@ -191,15 +191,18 @@ SDL_VIDEODRIVER=dummy ./build/neon-breaker --level 5 --auto --screenshot shots/x
 
 ### 持续集成(CI)
 
-`.github/workflows/ci.yml` — 推送到 `main` 或开 PR 时自动触发,三平台并行:
+`.github/workflows/ci.yml` — 推送到 `main` 或开 PR 时自动触发,五个 job 并行:
 
-| 平台 | Runner | 依赖 | 验证 |
+| Job | Runner | 依赖 | 验证 |
 | --- | --- | --- | --- |
 | Linux | `ubuntu-latest` | `vendor/` 自带 + apt 运行时库 | 构建零警告 → `--aim-test` → dummy 截图 |
 | macOS | `macos-latest` | Homebrew `sdl3 sdl3_ttf` | 同上 |
 | Windows | `windows-latest` | vcpkg(`vcpkg.json`: `sdl3` `sdl3-ttf`) | 同上(`--config Release`) |
+| Android (libmain.so) | `ubuntu-latest` | `fetch-deps.sh`(NDK + SDL 源码,actions/cache 缓存) | NDK 交叉编译零警告 → 上传 libmain.so |
+| Android (APK) | `ubuntu-latest` | 依赖上一 job 的 libmain.so + Android SDK(platform 35 / build-tools) | Gradle `assembleDebug` → 上传 APK |
+| iOS | `macos-latest` | `fetch-deps.sh --no-ndk`(SDL 源码) | CMake Xcode 模拟器交叉编译(`CMAKE_SYSTEM_NAME=iOS`)→ .app 产物验证 |
 
-每平台冒烟截图上传为 artifact(`smoke-<平台>.bmp`)供人工比对。本地预览可用 act:`act -j build-test --matrix "os:ubuntu-latest"`。
+桌面三平台冒烟截图上传为 artifact(`smoke-<平台>.bmp`);Android 产物上传 `libmain.so` 与 `app-debug.apk`。本地预览可用 act:`act -j build-test --matrix "os:ubuntu-latest"`(Android job 亦可:`act -j android-build` / `act -j android-apk`)。
 
 ---
 

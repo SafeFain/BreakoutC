@@ -1,21 +1,28 @@
 #!/usr/bin/env bash
-# 下载并准备 Android 交叉编译依赖(NDK + SDL3 + SDL3_ttf + freetype)
-# 用法: tools/android/fetch-deps.sh
+# 下载并准备 Android/iOS 交叉编译依赖(NDK + SDL3 + SDL3_ttf + freetype)
+# 用法: tools/android/fetch-deps.sh [--no-ndk]   # --no-ndk: 跳过 NDK(iOS 构建不需要)
 set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$DIR"
+
+NO_NDK=false
+if [[ "${1:-}" == "--no-ndk" ]]; then NO_NDK=true; fi
 
 NDK_VERSION="r27c"
 SDL3_VERSION="3.2.10"
 SDL3_TTF_VERSION="3.2.2"
 FREETYPE_VERSION="VER-2-13-3"
 
-echo "==> 下载 NDK $NDK_VERSION(~660MB)..."
-[ -d "android-ndk-$NDK_VERSION" ] || {
-  curl -sL -o ndk.zip "https://dl.google.com/android/repository/android-ndk-$NDK_VERSION-linux.zip"
-  unzip -q ndk.zip && rm -f ndk.zip
-}
+if $NO_NDK; then
+  echo "==> --no-ndk: 跳过 NDK 下载"
+else
+  echo "==> 下载 NDK $NDK_VERSION(~660MB)..."
+  [ -d "android-ndk-$NDK_VERSION" ] || {
+    curl -sL -o ndk.zip "https://dl.google.com/android/repository/android-ndk-$NDK_VERSION-linux.zip"
+    unzip -q ndk.zip && rm -f ndk.zip
+  }
+fi
 
 echo "==> 下载 SDL3 $SDL3_VERSION / SDL3_ttf $SDL3_TTF_VERSION / freetype..."
 [ -d "SDL-release-$SDL3_VERSION" ] || {

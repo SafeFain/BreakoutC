@@ -121,7 +121,7 @@ SDL_VIDEODRIVER=dummy ./build/neon-breaker ...           # 无头冒烟测试
 5. 涉及存档:检查 `~/.local/share/NeonBreaker/settings/settings.kv` 读写
 6. 涉及输入:验证键盘(空格/Esc/R/A/D/方向键)与鼠标路径
 7. **跨平台改动**:平台分支代码必须保持其余平台可编译——桌面改动跑 Linux 回归;触碰移动端分支时用 `tools/android/build-android.sh` 交叉编译验证;Windows 分支用 `tools/mingw-toolchain.cmake` 交叉编译验证
-8. **CI 一致性**:`.github/workflows/ci.yml` 自动覆盖三平台(Linux/macOS/Windows)构建+自检+截图冒烟;涉及依赖/构建链的改动须保证 CI 通过(本地可用 `act -j build-test --matrix "os:ubuntu-latest"` 预览 Linux job);`vcpkg.json` 依赖变更须经三平台验证
+8. **CI 一致性**:`.github/workflows/ci.yml` 自动覆盖全平台——桌面三平台(Linux/macOS/Windows)构建+自检+截图冒烟、Android(NDK 交叉编译 + Gradle APK)、iOS(模拟器交叉编译);涉及依赖/构建链的改动须保证 CI 通过(本地可用 act 预览:`act -j build-test --matrix "os:ubuntu-latest"`、`act -j android-build`、`act -j android-apk`);`vcpkg.json` 依赖变更须经全平台验证
 
 ## 工作规则
 

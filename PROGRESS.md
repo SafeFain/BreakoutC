@@ -4,7 +4,19 @@
 
 ## 当前任务
 
-**无进行中任务**(上一任务:配置 GitHub Actions CI,已于 2026-08-06 完成并归档)。
+**无进行中任务**(上一任务:CI 拓展至 Android 与 iOS,已于 2026-08-06 完成并归档)。
+
+## 上一任务:CI 拓展至 Android 与 iOS(已完成)
+
+| # | 步骤 | 状态 | 说明 |
+| --- | --- | --- | --- |
+| 1 | android-build job | ✅ | act 端到端全绿:NDK 交叉编译零警告、libmain.so 上传、613MB 依赖缓存 |
+| 2 | android-apk job | ✅ | act 端到端全绿:JDK/SDK 自装兼容、Gradle assembleDebug、APK 6.0MB 上传 |
+| 3 | ios-build job | ⚠️ 配置就绪 | macOS runner 模拟器交叉编译(CMakeLists iOS 分支 + Info.plist),待真实运行 |
+| 4 | 配套改动 | ✅ | fetch-deps.sh --no-ndk;CMakeLists iOS 分支;assets/ios/Info.plist |
+| 5 | 文档同步 | ✅ | README 5 job 矩阵;AGENTS 验证规则 8;归档+TASKS |
+
+**遗留**:ios-build 首次真实运行待 GitHub runner(macOS);iOS 仅编译期验证。
 
 ## 上一任务:配置 GitHub Actions CI(已完成)
 

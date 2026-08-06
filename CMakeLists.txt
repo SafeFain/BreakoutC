@@ -56,8 +56,25 @@ elseif(ANDROID)
   # 内置字体打包进 APK assets 由 android-project/Gradle 处理;此处仅构建库
   return()  # Android 专用构建,跳过下方桌面公共部分
 elseif(IOS)
-  # iOS:使用 Xcode 工程模板(见 docs/ios/),不在此处 find_package
-  message(FATAL_ERROR "iOS 构建请使用 Xcode 工程模板(见 docs/ios/)")
+  # iOS:交叉编译(CI 于 macOS runner 用模拟器 SDK 验证;iOS 工程集成见 docs/platform/ios.md)
+  set(SDL3_SOURCE_DIR "${CMAKE_SOURCE_DIR}/tools/android/SDL-release-3.2.10" CACHE PATH "SDL3 源码目录")
+  set(SDL3_TTF_SOURCE_DIR "${CMAKE_SOURCE_DIR}/tools/android/SDL_ttf-release-3.2.2" CACHE PATH "SDL3_ttf 源码目录")
+  set(SDL_SHARED OFF CACHE BOOL "" FORCE)
+  set(SDL_STATIC ON CACHE BOOL "" FORCE)
+  set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+  add_subdirectory(${SDL3_TTF_SOURCE_DIR} SDL3_ttf EXCLUDE_FROM_ALL)  # 先编译 freetype(其 vendored 子目录)
+  add_subdirectory(${SDL3_SOURCE_DIR} SDL3 EXCLUDE_FROM_ALL)           # SDL3-static(含 iOS UIKit main)
+  add_executable(neon-breaker
+    src/main.cpp src/audio.cpp src/fx.cpp src/game.cpp src/input.cpp
+    src/renderer.cpp src/storage.cpp src/ui.cpp
+  )
+  target_include_directories(neon-breaker PRIVATE src)
+  target_link_libraries(neon-breaker PRIVATE SDL3::SDL3-static SDL3_ttf::SDL3_ttf-static)
+  set_target_properties(neon-breaker PROPERTIES
+    MACOSX_BUNDLE ON
+    MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/assets/ios/Info.plist
+  )
+  return()
 else()
   message(FATAL_ERROR "未支持的平台: ${CMAKE_SYSTEM_NAME}")
 endif()

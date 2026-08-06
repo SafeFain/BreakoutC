@@ -75,3 +75,105 @@ jobs:
           name: smoke-${{ matrix.name }}
           path: ci-smoke.bmp
           if-no-files-found: error
+
+  android-build:
+    name: Android (libmain.so)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: 安装构建工具
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build make g++ unzip
+
+      - name: 缓存交叉编译依赖(NDK + SDL 源码)
+        uses: actions/cache@v5
+        continue-on-error: true   # 缓存缺失/不可用时降级为重新下载,不阻塞构建
+        with:
+          path: tools/android
+          key: android-deps-ndk-r27c-sdl-3.2.10-${{ runner.os }}
+
+      - name: 获取依赖(NDK ~660MB + SDL3 源码)
+        run: tools/android/fetch-deps.sh
+
+      - name: 交叉编译 libmain.so(零警告)
+        run: tools/android/build-android.sh
+
+      - name: 验证产物
+        run: file build-android/libmain.so
+
+      - name: 上传 libmain.so
+        uses: actions/upload-artifact@v5
+        with:
+          name: libmain.so
+          path: build-android/libmain.so
+          if-no-files-found: error
+
+  android-apk:
+    name: Android (APK)
+    runs-on: ubuntu-latest
+    needs: android-build
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v5
+        with:
+          name: libmain.so
+          path: android-project/app/libs/arm64-v8a/
+
+      - name: 准备 JDK 与 Android SDK
+        run: |
+          # JDK(runner 预装,act 容器需要;幂等)
+          sudo apt-get update
+          sudo apt-get install -y openjdk-17-jdk-headless
+          # SDK:runner 预置;无预置(如本地 act)时下载 cmdline-tools
+          if [ -z "${ANDROID_SDK_ROOT:-}" ] || [ ! -d "$ANDROID_SDK_ROOT" ]; then
+            mkdir -p "$HOME/android-sdk/cmdline-tools"
+            curl -sL -o /tmp/clt.zip "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
+            unzip -q /tmp/clt.zip -d "$HOME/android-sdk/cmdline-tools"
+            mv "$HOME/android-sdk/cmdline-tools/cmdline-tools" "$HOME/android-sdk/cmdline-tools/latest"
+            export ANDROID_SDK_ROOT="$HOME/android-sdk"
+            echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> "$GITHUB_ENV"
+            echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          fi
+
+      - name: 安装 Android SDK 组件
+        run: |
+          sdkmanager --install "platforms;android-35" "build-tools;35.0.0" --sdk_root="$ANDROID_SDK_ROOT"
+          yes | sdkmanager --licenses --sdk_root="$ANDROID_SDK_ROOT" >/dev/null 2>&1 || true
+
+      - name: 组装 Debug APK
+        run: cd android-project && ./gradlew assembleDebug --no-daemon
+
+      - name: 上传 APK
+        uses: actions/upload-artifact@v5
+        with:
+          name: neon-breaker-debug.apk
+          path: android-project/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+  ios-build:
+    name: iOS (模拟器交叉编译)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: 获取 SDL3 源码(无 NDK)
+        run: tools/android/fetch-deps.sh --no-ndk
+
+      - name: 配置(CMake iOS 模拟器交叉编译)
+        run: cmake -G Xcode -B build-ios -DCMAKE_SYSTEM_NAME=iOS \
+             -DCMAKE_OSX_SYSROOT=iphonesimulator \
+             -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" \
+             -DCMAKE_BUILD_TYPE=Release
+
+      - name: 构建(零警告)
+        run: cmake --build build-ios --config Release -- -sdk iphonesimulator
+
+      - name: 验证产物
+        run: |
+          APP=$(find build-ios -path "*Release-iphonesimulator/neon-breaker.app" -type d | head -1)
+          echo "app bundle: $APP"
+          file "$APP/neon-breaker"
+          test -f "$APP/Info.plist" && echo "Info.plist OK"

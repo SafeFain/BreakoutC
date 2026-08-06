@@ -20,6 +20,7 @@
 | 跨平台兼容性拓展(Windows/macOS/Linux/iOS/Android) | 2026-08-06 | `docs/tasks/archive/2026-08-06-cross-platform.md` |
 | 建立本地 Git 仓库(初始提交 + .gitignore + 依赖脚本) | 2026-08-06 | `docs/tasks/archive/2026-08-06-git-init.md` |
 | 配置 GitHub Actions CI(Linux/macOS/Windows 三平台自动构建+自检) | 2026-08-06 | `docs/tasks/archive/2026-08-06-github-actions-ci.md` |
+| CI 拓展至 Android 与 iOS(libmain.so / APK / 模拟器交叉编译) | 2026-08-06 | `docs/tasks/archive/2026-08-06-ci-android-ios.md` |
 
 ## 备注
 
