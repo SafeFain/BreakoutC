@@ -30,7 +30,7 @@ jobs:
             exe: ./build/Release/neon-breaker.exe
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: 安装依赖(Linux)
         if: runner.os == 'Linux'
@@ -70,7 +70,7 @@ jobs:
         run: ${{ matrix.exe }} --level 3 --auto --screenshot ci-smoke.bmp
 
       - name: 上传冒烟截图
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: smoke-${{ matrix.name }}
           path: ci-smoke.bmp

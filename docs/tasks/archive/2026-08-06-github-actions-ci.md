@@ -21,9 +21,13 @@
 
 ## 修复记录(2026-08-06,Windows 实机反馈)
 
-**问题**:Windows 上 `-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT/...` 未被 shell 展开,CMake 收到字面量 `$env:...` 报 "Could not find toolchain file"。
+**问题 1**:Windows 上 `-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT/...` 未被 shell 展开,CMake 收到字面量 `$env:...` 报 "Could not find toolchain file"。
 
 **修复**:配置步骤拆分为二——`配置(Windows)`(`shell: pwsh`,双引号包裹 `"$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"`,微软 vcpkg 官方推荐写法)与 `配置(Linux/macOS)`(沿用 matrix.cmake_args);matrix Windows 行 `cmake_args` 置空。act 重跑 Linux job 全绿(6 步 Success)。
+
+**问题 2**(GitHub 弃用警告):Node.js 20 弃用,`actions/checkout@v4` / `actions/upload-artifact@v4` 被强制跑 Node 24。
+
+**修复**:升级 `actions/checkout@v5`、`actions/upload-artifact@v5`(Node 24 原生)。act 验证:两 action 均以 Node 24 执行,全绿。
 
 **本地 PowerShell 复现命令**:
 ```powershell
