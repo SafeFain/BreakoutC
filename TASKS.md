@@ -18,8 +18,9 @@
 | 粘球自由方向发射(C++ 版 + web 同步) | 2026-08-06 | `docs/tasks/archive/2026-08-06-sticky-aim-direction.md` |
 | 移除 web 版(TypeScript 实现) | 2026-08-06 | `docs/tasks/archive/2026-08-06-remove-web-version.md` |
 | 跨平台兼容性拓展(Windows/macOS/Linux/iOS/Android) | 2026-08-06 | `docs/tasks/archive/2026-08-06-cross-platform.md` |
+| 建立本地 Git 仓库(初始提交 + .gitignore + 依赖脚本) | 2026-08-06 | `docs/tasks/archive/2026-08-06-git-init.md` |
 
 ## 备注
 
-- 本项目无 Git 仓库,归档不引用提交/分支;删除性操作前先备份(web 版源码备份:`/tmp/breakout-web-backup-20260806.tar.gz`,tmpfs 临时)
+- 本项目已建立本地 Git 仓库(2026-08-06 初始提交);归档不引用提交哈希;删除性操作前先确认已提交或备份(web 版源码备份:`/tmp/breakout-web-backup-20260806.tar.gz`,tmpfs 临时)
 - 当前为 C++ 单实现项目,web 版历史归档保留原样(历史事实),不得恢复为维护对象
