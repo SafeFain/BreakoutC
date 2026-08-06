@@ -1,0 +1,35 @@
+plugins {
+     id 'com.android.application'
+}
+
+
+android {
+    namespace = "org.libsdl.app"
+    compileSdkVersion 35
+    defaultConfig {
+        minSdkVersion 29
+        targetSdkVersion 35
+        versionCode 1
+        versionName "1.0"
+        // 预编译 .so 方式:libmain.so 由 tools/android 交叉编译后放入 app/libs/<abi>/
+        // (不再使用 externalNativeBuild;SDL3/SDL3_ttf/freetype 均静态链接进 libmain.so)
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+    if (!project.hasProperty('EXCLUDE_NATIVE_LIBS')) {
+        sourceSets.main {
+            jniLibs.srcDir 'libs'
+        }
+    }
+    lint {
+        abortOnError = false
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+}

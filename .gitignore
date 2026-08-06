@@ -1,0 +1,19 @@
+# 构建产物
+build/
+build-win/
+build-android/
+
+# 截图测试产物
+shots/
+
+# 工具配置目录
+.reasonix/
+
+# 交叉编译依赖(约 2.7GB,用 tools/android/fetch-deps.sh 重新获取)
+tools/android/*
+!tools/android/build-android.sh
+!tools/android/fetch-deps.sh
+tools/win-deps/
+
+# Android 预编译库(用 tools/android/build-android.sh 重新生成)
+android-project/app/libs/
