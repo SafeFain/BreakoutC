@@ -19,6 +19,17 @@
 - Linux job 命令序列本机模拟通过
 - macOS/Windows job 无法本地执行(act 不支持非 Linux runner),标准做法 + 源码级兼容性检查(无 M_PI/strcasecmp 等 MSVC 不兼容项)
 
+## 修复记录(2026-08-06,Windows 实机反馈)
+
+**问题**:Windows 上 `-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT/...` 未被 shell 展开,CMake 收到字面量 `$env:...` 报 "Could not find toolchain file"。
+
+**修复**:配置步骤拆分为二——`配置(Windows)`(`shell: pwsh`,双引号包裹 `"$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"`,微软 vcpkg 官方推荐写法)与 `配置(Linux/macOS)`(沿用 matrix.cmake_args);matrix Windows 行 `cmake_args` 置空。act 重跑 Linux job 全绿(6 步 Success)。
+
+**本地 PowerShell 复现命令**:
+```powershell
+cmake -B build -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+```
+
 ## 遗留
 - macOS/Windows job 首次真实运行在 GitHub runner 上(推送后触发)
 - 仓库无远端:推送 GitHub 后 push 即自动触发;本地 act 预览命令见 README
