@@ -1,0 +1,282 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    name: 打包 Linux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: 安装依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++
+          sudo apt-get install -y \
+            libasound2t64 libx11-6 libxext6 libxcursor1 libxi6 libxfixes3 \
+            libxrandr2 libxss1 libpipewire-0.3-0 libpulse0 libsndio7.0 \
+            libdrm2 libgbm1 libwayland-client0 libwayland-egl1 libwayland-cursor0 \
+            libxkbcommon0 libdecor-0-0 libharfbuzz0b libfreetype6
+
+      - name: 配置与构建
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build -j
+          ./build/neon-breaker --aim-test
+
+      - name: 打包(自带 SDL 运行时库,保持 vendor 布局以匹配 rpath)
+        run: |
+          mkdir -p pkg/vendor/usr/lib/x86_64-linux-gnu pkg/assets/fonts
+          cp build/neon-breaker pkg/
+          cp vendor/usr/lib/x86_64-linux-gnu/libSDL3.so* pkg/vendor/usr/lib/x86_64-linux-gnu/
+          cp vendor/usr/lib/x86_64-linux-gnu/libSDL3_ttf.so* pkg/vendor/usr/lib/x86_64-linux-gnu/
+          cp -r assets/fonts/* pkg/assets/fonts/
+          tar czf neon-breaker-linux-x86_64.tar.gz -C pkg .
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: release-linux
+          path: neon-breaker-linux-x86_64.tar.gz
+          if-no-files-found: error
+
+  windows:
+    name: 打包 Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: 配置与构建
+        shell: pwsh
+        run: |
+          cmake -B build -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows
+          cmake --build build -j --config Release
+          ./build/Release/neon-breaker.exe --aim-test
+
+      - name: 打包(exe + SDL DLL + 字体)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path pkg/assets/fonts | Out-Null
+          Copy-Item build/Release/neon-breaker.exe pkg/
+          Copy-Item build/Release/SDL3.dll, build/Release/SDL3_ttf.dll pkg/
+          Copy-Item assets/fonts/* pkg/assets/fonts/
+          tar -a -c -f neon-breaker-windows-x64.zip pkg
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: release-windows
+          path: neon-breaker-windows-x64.zip
+          if-no-files-found: error
+
+  macos:
+    name: 打包 macOS
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: 安装依赖
+        run: |
+          brew untap aws/tap 2>/dev/null || true
+          brew install sdl3 sdl3_ttf
+
+      - name: 配置与构建
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$(brew --prefix)"
+          cmake --build build -j
+          ./build/neon-breaker --aim-test
+
+      - name: 打包(dylib 闭包 + @loader_path 重定位 + 字体)
+        run: |
+          mkdir -p pkg/assets/fonts
+          cp build/neon-breaker pkg/
+          cd pkg
+          # 收集 Homebrew dylib 传递闭包(迭代至稳定)
+          changed=1
+          while [ "$changed" = 1 ]; do
+            changed=0
+            for f in neon-breaker *.dylib; do
+              [ -f "$f" ] || continue
+              for d in $(otool -L "$f" 2>/dev/null | grep -oE '/opt/homebrew/lib/[^ ]+' | sort -u); do
+                if [ ! -f "$(basename "$d")" ]; then cp "$d" . && changed=1; fi
+              done
+            done
+          done
+          # 重写引用为 @loader_path(多轮覆盖嵌套依赖)
+          for i in 1 2 3 4; do
+            for f in neon-breaker *.dylib; do
+              [ -f "$f" ] || continue
+              for d in $(otool -L "$f" 2>/dev/null | grep -oE '/opt/homebrew/lib/[^ ]+' | sort -u); do
+                install_name_tool -change "$d" "@loader_path/$(basename "$d")" "$f" 2>/dev/null || true
+              done
+            done
+          done
+          for f in *.dylib; do install_name_tool -id "@loader_path/$f" "$f" 2>/dev/null || true; done
+          cp -r ../assets/fonts/* assets/fonts/
+          printf 'Neon Breaker macOS 版\n运行方式: 解压后执行 ./neon-breaker(或双击打开终端运行)\n' > README.txt
+          cd ..
+          zip -r -y neon-breaker-macos-arm64.zip pkg
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: release-macos
+          path: neon-breaker-macos-arm64.zip
+          if-no-files-found: error
+
+  android:
+    name: 打包 Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: 安装构建工具
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build make g++ unzip
+
+      - name: 缓存交叉编译依赖(与 CI 共用 key)
+        uses: actions/cache@v5
+        continue-on-error: true
+        with:
+          path: tools/android
+          key: android-deps-ndk-r27c-sdl-3.2.10-${{ runner.os }}
+
+      - name: 获取依赖
+        run: tools/android/fetch-deps.sh
+
+      - name: 交叉编译 libmain.so
+        run: tools/android/build-android.sh
+
+      - name: 准备 JDK 与 Android SDK
+        run: |
+          sudo apt-get install -y openjdk-17-jdk-headless
+          if [ -z "${ANDROID_SDK_ROOT:-}" ] || [ ! -d "$ANDROID_SDK_ROOT" ]; then
+            mkdir -p "$HOME/android-sdk/cmdline-tools"
+            curl -sL -o /tmp/clt.zip "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
+            unzip -q /tmp/clt.zip -d "$HOME/android-sdk/cmdline-tools"
+            mv "$HOME/android-sdk/cmdline-tools/cmdline-tools" "$HOME/android-sdk/cmdline-tools/latest"
+            export ANDROID_SDK_ROOT="$HOME/android-sdk"
+            echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> "$GITHUB_ENV"
+          fi
+          if [ -d "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" ]; then
+            echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          fi
+
+      - name: 安装 Android SDK 组件
+        run: |
+          sdkmanager --install "platforms;android-35" "build-tools;35.0.0" --sdk_root="$ANDROID_SDK_ROOT"
+          yes | sdkmanager --licenses --sdk_root="$ANDROID_SDK_ROOT" >/dev/null 2>&1 || true
+
+      - name: 组装 Debug APK
+        run: |
+          mkdir -p android-project/app/libs/arm64-v8a
+          cp build-android/libmain.so android-project/app/libs/arm64-v8a/
+          cd android-project && ./gradlew assembleDebug --no-daemon
+
+      - name: 重命名 APK
+        run: cp android-project/app/build/outputs/apk/debug/app-debug.apk neon-breaker-android-arm64.apk
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: release-android
+          path: neon-breaker-android-arm64.apk
+          if-no-files-found: error
+
+  ios:
+    name: 打包 iOS(模拟器 + 未签名 IPA)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: 获取 SDL3 源码
+        run: tools/android/fetch-deps.sh --no-ndk
+
+      - name: 构建模拟器 .app
+        run: |
+          cmake -G Xcode -B build-ios -DCMAKE_SYSTEM_NAME=iOS \
+               -DCMAKE_OSX_SYSROOT=iphonesimulator \
+               -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+          cmake --build build-ios --config Release -- -sdk iphonesimulator
+
+      - name: 构建真机 .app(未签名,iphoneos)
+        run: |
+          cmake -G Xcode -B build-ios-device -DCMAKE_SYSTEM_NAME=iOS \
+               -DCMAKE_OSX_SYSROOT=iphoneos \
+               -DCMAKE_OSX_ARCHITECTURES=arm64 \
+               -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED=NO
+          cmake --build build-ios-device --config Release -- \
+               -sdk iphoneos CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+
+      - name: 验证真机产物架构
+        run: |
+          DEVICE_APP=$(find build-ios-device -path "*Release-iphoneos/neon-breaker.app" -type d | head -1)
+          test -n "$DEVICE_APP" || { echo "未找到真机 .app"; exit 1; }
+          file "$DEVICE_APP/neon-breaker"
+
+      - name: 打包模拟器 zip
+        run: |
+          APP=$(find build-ios -path "*Release-iphonesimulator/neon-breaker.app" -type d | head -1)
+          test -n "$APP" || { echo "未找到模拟器 .app"; exit 1; }
+          mkdir -p "$APP/assets/fonts"
+          cp -r assets/fonts/* "$APP/assets/fonts/"
+          cd "$(dirname "$APP")"
+          zip -r -y neon-breaker-ios-simulator.zip "$(basename "$APP")"
+          mv neon-breaker-ios-simulator.zip "$GITHUB_WORKSPACE/"
+
+      - name: 打包未签名 IPA(Payload/ 结构)
+        run: |
+          DEVICE_APP=$(find build-ios-device -path "*Release-iphoneos/neon-breaker.app" -type d | head -1)
+          mkdir -p pkg-ipa/Payload
+          cp -r assets/fonts "$DEVICE_APP/assets/"
+          cp -r "$DEVICE_APP" pkg-ipa/Payload/
+          cd pkg-ipa
+          zip -r -y ../neon-breaker-unsigned.ipa Payload
+          cd ..
+          unzip -l neon-breaker-unsigned.ipa | head -8
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: release-ios-simulator
+          path: neon-breaker-ios-simulator.zip
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: release-ios-ipa
+          path: neon-breaker-unsigned.ipa
+          if-no-files-found: error
+
+  release:
+    name: 发布 GitHub Release
+    needs: [linux, windows, macos, android, ios]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          path: dist
+          pattern: release-*
+          merge-multiple: true
+
+      - name: 创建/更新 Release 并上传产物
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -la dist/
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            TAG="$GITHUB_REF_NAME"
+          else
+            TAG="nightly-$(date +%Y%m%d-%H%M)"
+          fi
+          echo "Release tag: $TAG"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber
+          else
+            gh release create "$TAG" dist/* --title "$TAG" --generate-notes
+          fi

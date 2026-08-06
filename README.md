@@ -123,6 +123,20 @@ SDL_VIDEODRIVER=dummy ./build/neon-breaker --level 3 --auto --screenshot shots/x
 
 ⚠️ 项需对应平台实测;移动端输入/生命周期差异均已适配(见 `PROGRESS.md` 核对表)。
 
+### 持续交付(CD)
+
+`.github/workflows/release.yml` — 推送 `v*` tag(或手动 `workflow_dispatch`)时自动打包五平台产物并发布 GitHub Release:
+
+| Job | 产物 | 内容 |
+| --- | --- | --- |
+| Linux | `neon-breaker-linux-x86_64.tar.gz` | 可执行 + SDL 运行时库(保持 vendor 布局匹配 RUNPATH)+ 字体,解压即跑 |
+| Windows | `neon-breaker-windows-x64.zip` | exe + SDL3.dll/SDL3_ttf.dll(vcpkg applocal)+ 字体 |
+| macOS | `neon-breaker-macos-arm64.zip` | 可执行 + Homebrew dylib 传递闭包(`@loader_path` 重定位)+ 字体 |
+| Android | `neon-breaker-android-arm64.apk` | NDK 交叉编译 + Gradle 组装 Debug APK |
+| iOS | `neon-breaker-ios-simulator.zip` / `neon-breaker-unsigned.ipa` | 模拟器 .app(arm64+x86_64)+ **真机未签名 IPA**(iphoneos arm64,`CODE_SIGNING_ALLOWED=NO`,Payload 结构,开发者可自行重签名) |
+
+发布 job 汇总全部产物,`gh release create`(tag 已存在则 `--clobber` 覆盖上传),自动生成 release notes。手动触发时生成 `nightly-<时间戳>` release。
+
 ### 各平台构建
 
 ```bash

@@ -4,7 +4,18 @@
 
 ## 当前任务
 
-**无进行中任务**(上一任务:CI 拓展至 Android 与 iOS,已于 2026-08-06 完成并归档)。
+**无进行中任务**(上一任务:自动 CD 发布流水线,已于 2026-08-06 完成并归档)。
+
+## 上一任务:自动 CD 发布流水线(已完成)
+
+| # | 步骤 | 状态 | 说明 |
+| --- | --- | --- | --- |
+| 1 | release.yml 编写 | ✅ | tag v* + workflow_dispatch 触发;linux/windows/macos/android/ios 五打包 job + release 发布 job |
+| 2 | Linux 打包验证 | ✅ | act 端到端(打包 597ms)+ 本地模拟:RUNPATH 相对布局、aim-test、截图、tar.gz 3.7MB |
+| 3 | 其余平台打包 | ✅ | CI 已验证编译链路复用(macOS dylib 闭包重定位、Android APK、iOS .app) |
+| 4 | 文档同步 | ✅ | README CD 小节;AGENTS 目录;归档+TASKS |
+
+**遗留**:首次 tag 推送触发真实 CD;iOS 真机需签名;act 限制 upload-artifact@v6(验证到打包为止)。
 
 ## 上一任务:CI 拓展至 Android 与 iOS(已完成)
 

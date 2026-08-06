@@ -42,7 +42,8 @@ BreakOut/
 ├── docs/platform/       平台构建指南(macos.md / ios.md)
 ├── CMakeLists.txt       构建配置(平台分支:Linux vendor/、Win/mac find_package、Android 专用)
 ├── vcpkg.json           Windows(vcpkg)依赖清单:sdl3 / sdl3-ttf
-├── .github/workflows/ci.yml  三平台 CI(Linux/macOS/Windows 构建+自检+截图冒烟)
+├── .github/workflows/ci.yml      五平台 CI(构建+自检+截图冒烟)
+├── .github/workflows/release.yml CD(tag v* 触发,五平台产物打包 + GitHub Release)
 ├── README.md            用户文档:构建/运行/平台矩阵
 ├── src/                 C++ 源码(见模块职责)
 ├── assets/fonts/        内置子集字体(tools/make_font.py 生成,勿手改)

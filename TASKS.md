@@ -21,6 +21,7 @@
 | 建立本地 Git 仓库(初始提交 + .gitignore + 依赖脚本) | 2026-08-06 | `docs/tasks/archive/2026-08-06-git-init.md` |
 | 配置 GitHub Actions CI(Linux/macOS/Windows 三平台自动构建+自检) | 2026-08-06 | `docs/tasks/archive/2026-08-06-github-actions-ci.md` |
 | CI 拓展至 Android 与 iOS(libmain.so / APK / 模拟器交叉编译) | 2026-08-06 | `docs/tasks/archive/2026-08-06-ci-android-ios.md` |
+| 自动 CD 发布流水线(tag 触发五平台产物 + GitHub Release) | 2026-08-06 | `docs/tasks/archive/2026-08-06-cd-release.md` |
 
 ## 备注
 
