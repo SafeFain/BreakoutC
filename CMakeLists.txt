@@ -35,6 +35,10 @@ elseif(ANDROID)
   set(SDL_SHARED OFF CACHE BOOL "" FORCE)
   set(SDL_STATIC ON CACHE BOOL "" FORCE)
   set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+  # SDL_ttf 依赖:显式启用 vendored freetype(交叉环境无系统包),关闭 harfbuzz/plutosvg(目录未提供)
+  set(SDLTTF_VENDORED ON CACHE BOOL "" FORCE)
+  set(SDLTTF_HARFBUZZ OFF CACHE BOOL "" FORCE)
+  set(SDLTTF_PLUTOSVG OFF CACHE BOOL "" FORCE)
   add_subdirectory(${SDL3_SOURCE_DIR} SDL3 EXCLUDE_FROM_ALL)           # 先构建 SDL3(SDL3-static + SDL3::SDL3 别名)
   add_subdirectory(${SDL3_TTF_SOURCE_DIR} SDL3_ttf EXCLUDE_FROM_ALL)  # 检测到 SDL3 target 后跳过 find_package,使用 vendored freetype
   add_library(neon-breaker SHARED
@@ -53,8 +57,12 @@ elseif(IOS)
   set(SDL_SHARED OFF CACHE BOOL "" FORCE)
   set(SDL_STATIC ON CACHE BOOL "" FORCE)
   set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-  add_subdirectory(${SDL3_TTF_SOURCE_DIR} SDL3_ttf EXCLUDE_FROM_ALL)  # 先编译 freetype(其 vendored 子目录)
-  add_subdirectory(${SDL3_SOURCE_DIR} SDL3 EXCLUDE_FROM_ALL)           # SDL3-static(含 iOS UIKit main)
+  # SDL_ttf 依赖:显式启用 vendored freetype(交叉环境无系统包),关闭 harfbuzz/plutosvg(目录未提供)
+  set(SDLTTF_VENDORED ON CACHE BOOL "" FORCE)
+  set(SDLTTF_HARFBUZZ OFF CACHE BOOL "" FORCE)
+  set(SDLTTF_PLUTOSVG OFF CACHE BOOL "" FORCE)
+  add_subdirectory(${SDL3_SOURCE_DIR} SDL3 EXCLUDE_FROM_ALL)           # 先构建 SDL3(SDL3-static + SDL3::SDL3 别名,含 iOS UIKit main)
+  add_subdirectory(${SDL3_TTF_SOURCE_DIR} SDL3_ttf EXCLUDE_FROM_ALL)  # 检测到 SDL3 target 后跳过 find_package,使用 vendored freetype
   add_executable(neon-breaker
     src/main.cpp src/audio.cpp src/fx.cpp src/game.cpp src/input.cpp
     src/renderer.cpp src/storage.cpp src/ui.cpp

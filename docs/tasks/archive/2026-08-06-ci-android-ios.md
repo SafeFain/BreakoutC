@@ -34,6 +34,16 @@
 
 **修复**:PATH 追加从自装分支内移出,统一在步骤末尾执行——只要 `$ANDROID_SDK_ROOT/cmdline-tools/latest/bin` 存在即追加 `$GITHUB_PATH`(两种布局一致)。本地模拟验证两布局逻辑;act 全流程回归通过(APK 6.0MB 上传成功)。
 
+## 修复记录(2026-08-06,iOS 真实 runner 第二轮反馈)
+
+**问题**:ios-build 在 SDL_ttf 配置时报 `find_package(SDL3 3.2.6 REQUIRED)` 失败。
+
+**原因 1(顺序)**:iOS 分支 `add_subdirectory` 顺序写反——SDL_ttf 先于 SDL3 配置,SDL_ttf 的守卫 `if(NOT TARGET SDL3::Headers OR NOT TARGET SDL3::SDL3)` 触发 find_package。Android 分支顺序正确(SDL3 先),故 Android 成功。
+
+**原因 2(vendored)**:SDL_ttf 的 `vendored_default` 仅对 `ANDROID OR MSVC` 为 TRUE;iOS 默认 OFF 会 find_package 系统 freetype(交叉环境无此包)。
+
+**修复**:iOS 分支 add_subdirectory 顺序改为 SDL3 先(SDL_ttf 后,与 Android 一致);两个移动分支均显式 `SDLTTF_VENDORED=ON` + `SDLTTF_HARFBUZZ=OFF` + `SDLTTF_PLUTOSVG=OFF`(只依赖 vendored freetype)。Android 本地交叉编译回归通过。
+
 ## 验证
 - `android-build` job:act 0.2.89(docker)端到端全绿——依赖下载 53s、交叉编译零警告、libmain.so 上传成功、依赖缓存 613MB 保存成功
 - `android-apk` job:act 端到端全绿——JDK+SDK 自装分支、sdkmanager 组件安装、Gradle assembleDebug、APK(6.0MB)上传成功
