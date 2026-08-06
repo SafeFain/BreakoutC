@@ -135,7 +135,10 @@ jobs:
             mv "$HOME/android-sdk/cmdline-tools/cmdline-tools" "$HOME/android-sdk/cmdline-tools/latest"
             export ANDROID_SDK_ROOT="$HOME/android-sdk"
             echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> "$GITHUB_ENV"
-            echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          fi
+          # 统一把 sdkmanager 加入 PATH(runner 预置与自装两种布局)
+          if [ -d "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" ]; then
+            echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
           fi
 
       - name: 安装 Android SDK 组件
@@ -165,8 +168,7 @@ jobs:
       - name: 配置(CMake iOS 模拟器交叉编译)
         run: cmake -G Xcode -B build-ios -DCMAKE_SYSTEM_NAME=iOS \
              -DCMAKE_OSX_SYSROOT=iphonesimulator \
-             -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" \
-             -DCMAKE_BUILD_TYPE=Release
+             -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
 
       - name: 构建(零警告)
         run: cmake --build build-ios --config Release -- -sdk iphonesimulator
