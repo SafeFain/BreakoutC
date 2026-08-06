@@ -47,7 +47,9 @@ jobs:
 
       - name: 安装依赖(macOS)
         if: runner.os == 'macOS'
-        run: brew install sdl3 sdl3_ttf
+        run: |
+          brew untap aws/tap 2>/dev/null || true   # runner 预置 tap 触发 trust 警告,与本构建无关
+          brew install sdl3 sdl3_ttf
 
       - name: 配置(Windows)
         if: runner.os == 'Windows'
@@ -70,7 +72,7 @@ jobs:
         run: ${{ matrix.exe }} --level 3 --auto --screenshot ci-smoke.bmp
 
       - name: 上传冒烟截图
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: smoke-${{ matrix.name }}
           path: ci-smoke.bmp
@@ -104,7 +106,7 @@ jobs:
         run: file build-android/libmain.so
 
       - name: 上传 libmain.so
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: libmain.so
           path: build-android/libmain.so
@@ -117,7 +119,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v7
         with:
           name: libmain.so
           path: android-project/app/libs/arm64-v8a/
@@ -150,7 +152,7 @@ jobs:
         run: cd android-project && ./gradlew assembleDebug --no-daemon
 
       - name: 上传 APK
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: neon-breaker-debug.apk
           path: android-project/app/build/outputs/apk/debug/app-debug.apk

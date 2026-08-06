@@ -44,6 +44,16 @@
 
 **修复**:iOS 分支 add_subdirectory 顺序改为 SDL3 先(SDL_ttf 后,与 Android 一致);两个移动分支均显式 `SDLTTF_VENDORED=ON` + `SDLTTF_HARFBUZZ=OFF` + `SDLTTF_PLUTOSVG=OFF`(只依赖 vendored freetype)。Android 本地交叉编译回归通过。
 
+## 警告清理记录(2026-08-06,真实 runner 全绿后)
+
+**警告 1(Node 20 弃用 ×5)**:`actions/upload-artifact@v5` / `actions/download-artifact@v5` 的 v5 系列仍为 Node 20,被强制跑 Node 24。经官方 action.yml 核实:`upload-artifact` v6.0.0 起为 `node24`;`download-artifact` v7.0.0 起为 `node24`(v6.0.0 仍是 node20)。
+
+**修复**:全部升级——`upload-artifact@v5 → v6`(4 处)、`download-artifact@v5 → v7`(1 处);`cache@v5`/`checkout@v5` 已是 Node 24,警告列表无它们,保持。
+
+**警告 2(macOS Homebrew tap trust)**:runner 预置 `aws/tap` 触发新版 Homebrew 的 tap 信任检查警告(与构建无关)。修复:依赖步骤先 `brew untap aws/tap 2>/dev/null || true` 再 `brew install`。
+
+**act 本地限制**:`upload-artifact@v6` 与 act 0.2.89 的 artifact server 认证不兼容(`Error unauthorized`),act 本地验证到上传步骤为止;真实 runner 上 v6 + 官方服务为 GitHub 标准组合(参数 `name/path/if-no-files-found` 未变)。
+
 ## 验证
 - `android-build` job:act 0.2.89(docker)端到端全绿——依赖下载 53s、交叉编译零警告、libmain.so 上传成功、依赖缓存 613MB 保存成功
 - `android-apk` job:act 端到端全绿——JDK+SDK 自装分支、sdkmanager 组件安装、Gradle assembleDebug、APK(6.0MB)上传成功
