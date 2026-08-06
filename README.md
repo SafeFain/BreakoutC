@@ -185,9 +185,21 @@ cmake --build build -j                # 零警告
 SDL_VIDEODRIVER=dummy ./build/neon-breaker --level 5 --auto --screenshot shots/x.bmp  # 无头截图回归
 ```
 
-- 构建要求零警告(`-Wall -Wextra`)
+- 构建要求零警告(`-Wall -Wextra`;MSVC 下为 `/W4`)
 - 截图回归:任意改动后跑 `--screenshot` 三个状态(菜单 / ready / playing)人工比对
 - 字体子集如需扩展字符集:改 `tools/make_font.py` 后重新生成(需系统 Noto CJK 字体)
+
+### 持续集成(CI)
+
+`.github/workflows/ci.yml` — 推送到 `main` 或开 PR 时自动触发,三平台并行:
+
+| 平台 | Runner | 依赖 | 验证 |
+| --- | --- | --- | --- |
+| Linux | `ubuntu-latest` | `vendor/` 自带 + apt 运行时库 | 构建零警告 → `--aim-test` → dummy 截图 |
+| macOS | `macos-latest` | Homebrew `sdl3 sdl3_ttf` | 同上 |
+| Windows | `windows-latest` | vcpkg(`vcpkg.json`: `sdl3` `sdl3-ttf`) | 同上(`--config Release`) |
+
+每平台冒烟截图上传为 artifact(`smoke-<平台>.bmp`)供人工比对。本地预览可用 act:`act -j build-test --matrix "os:ubuntu-latest"`。
 
 ---
 

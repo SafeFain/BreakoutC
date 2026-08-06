@@ -8,7 +8,11 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
-add_compile_options(-Wall -Wextra)
+if(MSVC)
+  add_compile_options(/W4)
+else()
+  add_compile_options(-Wall -Wextra)
+endif()
 
 # ---------------- 平台分支 ----------------
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")

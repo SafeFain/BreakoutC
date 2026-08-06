@@ -1,0 +1,6 @@
+{
+  "name": "neon-breaker",
+  "version-string": "1.0.0",
+  "description": "Neon Breaker - C++20 + SDL3 breakout game",
+  "dependencies": [ "sdl3", "sdl3-ttf" ]
+}

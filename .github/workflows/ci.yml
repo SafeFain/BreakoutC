@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-test:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            os: ubuntu-latest
+            cmake_args: -DCMAKE_BUILD_TYPE=Release
+            build_config: ""
+            exe: ./build/neon-breaker
+          - name: macOS
+            os: macos-latest
+            cmake_args: -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=$(brew --prefix)
+            build_config: ""
+            exe: ./build/neon-breaker
+          - name: Windows
+            os: windows-latest
+            cmake_args: -DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake
+            build_config: --config Release
+            exe: ./build/Release/neon-breaker.exe
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装依赖(Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          # 构建工具(GitHub runner 预装,act 镜像需要;显式安装幂等)
+          sudo apt-get install -y cmake g++
+          # vendor/ 内 SDL3 3.2.10 的运行时依赖(ubuntu-24.04 包名)
+          sudo apt-get install -y \
+            libasound2t64 libx11-6 libxext6 libxcursor1 libxi6 libxfixes3 \
+            libxrandr2 libxss1 libpipewire-0.3-0 libpulse0 libsndio7.0 \
+            libdrm2 libgbm1 libwayland-client0 libwayland-egl1 libwayland-cursor0 \
+            libxkbcommon0 libdecor-0-0 libharfbuzz0b libfreetype6
+
+      - name: 安装依赖(macOS)
+        if: runner.os == 'macOS'
+        run: brew install sdl3 sdl3_ttf
+
+      - name: 配置
+        run: cmake -B build ${{ matrix.cmake_args }}
+
+      - name: 构建(要求零警告)
+        run: cmake --build build -j ${{ matrix.build_config }}
+
+      - name: 自检 --aim-test(粘球发射方向)
+        run: ${{ matrix.exe }} --aim-test
+
+      - name: 无头冒烟(截图回归)
+        env:
+          SDL_VIDEODRIVER: dummy
+        run: ${{ matrix.exe }} --level 3 --auto --screenshot ci-smoke.bmp
+
+      - name: 上传冒烟截图
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-${{ matrix.name }}
+          path: ci-smoke.bmp
+          if-no-files-found: error

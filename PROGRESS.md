@@ -4,7 +4,19 @@
 
 ## 当前任务
 
-**无进行中任务**(上一任务:跨平台兼容性拓展,已于 2026-08-06 完成并归档)。
+**无进行中任务**(上一任务:配置 GitHub Actions CI,已于 2026-08-06 完成并归档)。
+
+## 上一任务:配置 GitHub Actions CI(已完成)
+
+| # | 步骤 | 状态 | 说明 |
+| --- | --- | --- | --- |
+| 1 | workflow 设计 | ✅ | push(main)+PR 触发,三平台矩阵,每平台 6 步(依赖→配置→构建→aim-test→截图→artifact) |
+| 2 | 平台依赖 | ✅ | Linux apt(20 包+cmake/g++,act 实测修 `libsndio7`→`libsndio7.0`);macOS brew;Windows vcpkg |
+| 3 | MSVC 兼容 | ✅ | CMakeLists `/W4`;源码检查无 M_PI/strcasecmp 等不兼容项 |
+| 4 | act 端到端验证 | ✅ | Linux job 6 步全 Success,截图 state=2,artifact 上传成功 |
+| 5 | 文档同步 | ✅ | README CI 小节;AGENTS 目录/验证规则 8/修改边界;归档+TASKS |
+
+**遗留**:macOS/Windows job 首次真实运行需推送 GitHub(本地 act 仅支持 Linux runner);仓库尚无远端。
 
 ## 上一任务:跨平台兼容性拓展(已完成)
 

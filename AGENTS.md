@@ -41,6 +41,8 @@ BreakOut/
 ├── docs/tasks/archive/  已完成任务归档
 ├── docs/platform/       平台构建指南(macos.md / ios.md)
 ├── CMakeLists.txt       构建配置(平台分支:Linux vendor/、Win/mac find_package、Android 专用)
+├── vcpkg.json           Windows(vcpkg)依赖清单:sdl3 / sdl3-ttf
+├── .github/workflows/ci.yml  三平台 CI(Linux/macOS/Windows 构建+自检+截图冒烟)
 ├── README.md            用户文档:构建/运行/平台矩阵
 ├── src/                 C++ 源码(见模块职责)
 ├── assets/fonts/        内置子集字体(tools/make_font.py 生成,勿手改)
@@ -97,6 +99,7 @@ SDL_VIDEODRIVER=dummy ./build/neon-breaker ...           # 无头冒烟测试
 - **`assets/fonts/` 勿手改**:由 `tools/make_font.py` 重新生成(字符集变化时重跑)
 - **`android-project/` 为预编译 so 模式**:`libmain.so` 由 `tools/android/build-android.sh` 产出后放入 `app/libs/<abi>/`;不启用 Gradle externalNativeBuild
 - **交叉依赖源码**(`tools/android/`、`tools/win-deps/`):仅构建用途,版本固定(SDL3 3.2.10 / SDL3_ttf 3.2.2 / NDK r27c),不修改
+- **CI 基础设施**(`.github/workflows/ci.yml`、`vcpkg.json`):依赖版本与安装步骤变更须保持三平台可构建(见验证规则 8);`vcpkg.json` 仅 Windows 生效,不影响 Linux/macOS 构建
 - `build/`、`build-win/`、`build-android/`、`shots/` 为可再生物,可删除
 - `.reasonix/` 为工具配置目录,不修改
 - 已移除的 web 版不得恢复为维护对象(备份仅存档用途)
@@ -118,9 +121,11 @@ SDL_VIDEODRIVER=dummy ./build/neon-breaker ...           # 无头冒烟测试
 5. 涉及存档:检查 `~/.local/share/NeonBreaker/settings/settings.kv` 读写
 6. 涉及输入:验证键盘(空格/Esc/R/A/D/方向键)与鼠标路径
 7. **跨平台改动**:平台分支代码必须保持其余平台可编译——桌面改动跑 Linux 回归;触碰移动端分支时用 `tools/android/build-android.sh` 交叉编译验证;Windows 分支用 `tools/mingw-toolchain.cmake` 交叉编译验证
+8. **CI 一致性**:`.github/workflows/ci.yml` 自动覆盖三平台(Linux/macOS/Windows)构建+自检+截图冒烟;涉及依赖/构建链的改动须保证 CI 通过(本地可用 `act -j build-test --matrix "os:ubuntu-latest"` 预览 Linux job);`vcpkg.json` 依赖变更须经三平台验证
 
 ## 工作规则
 
+- **禁止自动提交**:任何 git 写入操作(`commit` / `push` / `merge` / `reset` 等)必须经用户明确要求或批准,禁止在任务完成时自动提交;用户未指示提交时,变更只保留在工作区,并在回复中说明"变更未提交";用户要求提交时,先展示 `git status` 变更摘要与拟用提交信息,提交信息按用户原话或惯例撰写
 - **状态文件**:`AGENTS.md`(长期事实)、`PLAN.md`(当前任务)、`PROGRESS.md`(当前进度)、`TASKS.md`(任务索引)在任务开始/完成/中断时更新,保持一致
 - **归档**:任务完成后写入 `docs/tasks/archive/YYYY-MM-DD-名称.md`,`TASKS.md` 维护索引;不要默认加载全部归档
 - **历史信息**:已废弃说明不得重新提升为现行规则;确需保留时标注"已废弃"

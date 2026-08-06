@@ -17,3 +17,4 @@ tools/win-deps/
 
 # Android 预编译库(用 tools/android/build-android.sh 重新生成)
 android-project/app/libs/
+.act-tools/
