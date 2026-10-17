@@ -30,6 +30,8 @@ cmake --build build-ios --config Release -- -sdk iphonesimulator
 
 The bundle is written to `build-ios/Release-iphonesimulator/neon-breaker.app`.
 
+> Keep each trailing `\` at the very end of its line, with no space after it. A space makes CMake treat the next flag as an extra path and emit `Ignoring extra path from command line`; delete `build-ios/` and rerun after fixing the line continuation.
+
 ### Device (arm64, unsigned)
 
 ```bash
