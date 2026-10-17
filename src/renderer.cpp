@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <string>
 
@@ -149,9 +150,22 @@ SDL_Color Renderer::hexColor(const std::string& s) const {
     c.g = static_cast<Uint8>(hex(s[3], s[4]));
     c.b = static_cast<Uint8>(hex(s[5], s[6]));
   } else if (s.rfind("rgba(", 0) == 0) {
-    int r, g, b; float a;
-    if (std::sscanf(s.c_str(), "rgba(%d,%d,%d,%f)", &r, &g, &b, &a) == 4) {
-      c = { static_cast<Uint8>(r), static_cast<Uint8>(g), static_cast<Uint8>(b), static_cast<Uint8>(a * 255) };
+    // 手工解析 rgba(r,g,b,a):格式固定,避免 sscanf(MSVC C4996)
+    float v[4] = { 0, 0, 0, 0 };
+    const char* p = s.c_str() + 5;
+    bool ok = true;
+    for (int i = 0; i < 4 && ok; i++) {
+      char* end = nullptr;
+      v[i] = std::strtof(p, &end);
+      if (end == p) { ok = false; break; }
+      p = end;
+      if (i < 3) {
+        if (*p != ',') { ok = false; break; }
+        p++;
+      }
+    }
+    if (ok && *p == ')') {
+      c = { static_cast<Uint8>(v[0]), static_cast<Uint8>(v[1]), static_cast<Uint8>(v[2]), static_cast<Uint8>(v[3] * 255) };
     }
   }
   return c;
@@ -180,7 +194,7 @@ Renderer::TextTex* Renderer::textTexture(const std::string& text, float size, SD
   auto it = cache_.find(key);
   if (it != cache_.end()) return &it->second;
   if (cache_.size() > 400) clearTextCache();
-  TTF_SetFontSize(font_, static_cast<int>(size));
+  TTF_SetFontSize(font_, size);
   SDL_Surface* surf = TTF_RenderText_Blended(font_, text.c_str(), 0, c);
   if (!surf) return nullptr;
   SDL_Texture* tex = SDL_CreateTextureFromSurface(renderer_, surf);
@@ -205,7 +219,7 @@ void Renderer::drawText(const std::string& text, float x, float y, float size, S
 
 float Renderer::textWidth(const std::string& text, float size) {
   if (!font_) return 0;
-  TTF_SetFontSize(font_, static_cast<int>(size));
+  TTF_SetFontSize(font_, size);
   int w = 0, h = 0;
   TTF_GetStringSize(font_, text.c_str(), 0, &w, &h);
   return static_cast<float>(w);
@@ -418,8 +432,8 @@ void Renderer::drawBrick(const BrickState& b, float ox, float oy) {
   std::string mark;
   if (b.kind == BrickKind::Indestructible) mark = "\xe2\x97\x86";     // ◆
   else if (b.kind == BrickKind::Bonus) mark = "\xe2\x98\x85";         // ★
-  else if (b.kind == BrickKind::Explosive) mark = "\xe2\x9c\xa6";     // ✦
-  else if (b.kind == BrickKind::Respawn) mark = "\xe2\x86\xbb";       // ↻
+  else if (b.kind == BrickKind::Explosive) mark = "\xef\xbc\x8a";     // ＊(Noto Sans CJK 无 ✦)
+  else if (b.kind == BrickKind::Respawn) mark = "\xe2\x99\xbb";       // ♻(Noto Sans CJK 无 ↻)
   else if (b.maxHp > 1) mark = std::to_string(b.hp);
   if (!mark.empty()) {
     drawText(mark, cx + ox, cy + oy - 7, 13, { 6, 9, 28, 148 }, 1);

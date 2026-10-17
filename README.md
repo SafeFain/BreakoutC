@@ -54,11 +54,11 @@ cmake --build build -j
 | --- | --- | --- |
 | 普通 `·` | 1 | 基础砖 |
 | 坚固 `= · =` | 2–4 | 多段生命,颜色随生命变化 |
-| 不可摧毁 `⬢` | ∞ | 只能被穿透球/激光绕过 |
-| 奖励 `♦` | 1 | 掉落道具 |
-| 爆炸 `✸` | 1 | 击碎时连锁引爆周围砖 |
+| 不可摧毁 `◆` | ∞ | 只能被穿透球/激光绕过 |
+| 奖励 `★` | 1 | 掉落道具 |
+| 爆炸 `＊` | 1 | 击碎时连锁引爆周围砖 |
 | 彩虹 `R` | 3 | 每次击中变色(青→紫→粉),击碎三色爆发 |
-| 再生 `↻` | 1 | 击碎后 5 秒原位重生(倒计时幽灵框警示) |
+| 再生 `♻` | 1 | 击碎后 5 秒原位重生(倒计时幽灵框警示) |
 
 ### 道具(11 种)
 
@@ -116,7 +116,7 @@ SDL_VIDEODRIVER=dummy ./build/neon-breaker --level 3 --auto --screenshot shots/x
 | 平台 | 状态 | 构建方式 | 验证程度 |
 | --- | --- | --- | --- |
 | Linux(X11/Wayland) | ✅ 可用 | `cmake -B build && cmake --build build`(自带 vendor/) | 完整运行验证 |
-| Windows 10/11 | ✅ 可构建 | mingw-w64 交叉编译(`tools/mingw-toolchain.cmake`)或 vcpkg(`sdl3` `sdl3-ttf`)+ MSVC | 交叉编译零警告产出 exe |
+| Windows 10/11 | ✅ 可用 | 原生 MSVC + CMake(VS 生成器;依赖用 `tools/fetch-win-deps.ps1` 下载官方 VC 开发包,或 vcpkg) | 本机零警告构建 + 自检 + 截图 |
 | macOS 11+ | ⚠️ 配置就绪 | Homebrew `sdl3 sdl3_ttf` + CMake → `docs/platform/macos.md` | 未实测(需 macOS) |
 | Android 10+(API 29) | ⚠️ 构建链就绪 | `tools/android/build-android.sh` → `android-project/` Gradle 组装 | libmain.so 交叉编译验证 |
 | iOS 13+ | ⚠️ 配置就绪 | SDL3 Xcode 工程 → `docs/platform/ios.md` | 未实测(需 macOS/Xcode) |
@@ -142,12 +142,13 @@ SDL_VIDEODRIVER=dummy ./build/neon-breaker --level 3 --auto --screenshot shots/x
 ```bash
 # Linux(见上方"快速开始")
 
-# Windows(交叉编译,需 mingw-w64 + SDL3 mingw 开发包于 tools/win-deps/)
-cmake -B build-win -DCMAKE_TOOLCHAIN_FILE=tools/mingw-toolchain.cmake \
-  -DSDL3_DIR=tools/win-deps/SDL3-3.2.10/x86_64-w64-mingw32/lib/cmake/SDL3 \
-  -DSDL3_ttf_DIR=tools/win-deps/SDL3_ttf-3.2.2/x86_64-w64-mingw32/lib/cmake/SDL3_ttf
-cmake --build build-win -j
-# 产物 build-win/neon-breaker.exe;运行时需 SDL3.dll / SDL3_ttf.dll 与 exe 同目录
+# Windows(原生 MSVC;需 Visual Studio 2022/2026 + Windows SDK)
+# 依赖二选一:vcpkg install sdl3 sdl3-ttf,或下载官方 VC 开发包到 tools/win-deps/vc/
+powershell -ExecutionPolicy Bypass -File tools/fetch-win-deps.ps1
+cmake -S . -B build -G "Visual Studio 18 2026" -A x64   # VS 2022 用 "Visual Studio 17 2022"
+cmake --build build --config Release
+# 产物 build/Release/neon-breaker.exe;SDL3.dll / SDL3_ttf.dll 与字体由构建后步骤自动复制
+# 网络受限时:powershell -File tools/fetch-win-deps.ps1 -Proxy http://127.0.0.1:7897
 
 # macOS:见 docs/platform/macos.md
 # Android:tools/android/build-android.sh(依赖 tools/android/fetch-deps.sh 获取)→ android-project/(见 android-project/README.md)
@@ -156,7 +157,8 @@ cmake --build build-win -j
 
 ### 跨平台要点
 
-- **字体**:内置子集字体 `assets/fonts/NotoSansSC-Bold-subset.otf`(107KB,`tools/make_font.py` 生成)优先;桌面回退系统字体(Windows 微软雅黑 / macOS 苹方 / Linux Noto CJK)
+- **字体**:内置子集字体 `assets/fonts/NotoSansSC-Bold-subset.otf`(113KB,`tools/make_font.py` 生成,含空格与 `＊`/`♻` 等符号)优先;桌面回退系统字体(Windows 微软雅黑 / macOS 苹方 / Linux Noto CJK)
+- **MSVC 选项**:`/utf-8`(源码 UTF-8 无 BOM,缺省按系统 ANSI 代码页解析会乱码/报错)、`/EHsc`(异常展开)由 `CMakeLists.txt` 统一添加
 - **存档**:`SDL_GetPrefPath` 各平台自动定位
 - **触屏 / 返回键 / 切后台**:SDL3 事件统一处理,已适配
 - **窗口**:桌面等比缩放 letterbox,最小 640×420;移动端全屏 + 横屏锁(工程层配置)
@@ -181,8 +183,10 @@ src/
   storage.h/cpp           存档 KV 文件读写
   types.h / constants.h / i18n.h / levels.h
 tools/
-  make_font.py            内置字体子集化脚本
-  mingw-toolchain.cmake   Windows 交叉编译工具链
+  make_font.py            内置字体子集化脚本(--src 指定源字体;需 fontTools)
+  fetch-win-deps.ps1      Windows:下载 SDL3/SDL3_ttf 官方 MSVC 开发包到 tools/win-deps/vc/
+  copy-runtime-dlls.cmake Windows:构建后把 SDL 运行库复制到 exe 同目录
+  mingw-toolchain.cmake   mingw-w64 交叉编译工具链(非主路径,保留备用)
   android/                fetch-deps.sh(依赖获取)+ build-android.sh(NDK 交叉编译)
 docs/                     平台文档(docs/platform/)、任务归档(docs/tasks/archive/)
 AGENTS.md                 工作规则(任务/状态文件/归档/跨平台验证)

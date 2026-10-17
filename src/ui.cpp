@@ -278,7 +278,7 @@ void UI::drawTopbar() {
       continue;
     if (btn.key == "sound") {
       std::string label = std::string(snap_.soundEnabled ? "\xe2\x99\xaa " : "") + std::string(t(snap_.language, "sound")) +
-                          (snap_.soundEnabled ? "" : " \xe2\x9a\xab");
+                          (snap_.soundEnabled ? "" : " \xc3\x97"); // ×(Noto Sans CJK 无 ⚫)
       r_->drawText(label, btn.rect.x + btn.rect.w / 2, btn.rect.y + 6, 13, p.onSurface, 1, 0.85f);
     } else {
       r_->drawText(btn.label, btn.rect.x + btn.rect.w / 2, btn.rect.y + 6, 13, p.onSurface, 1, 0.85f);

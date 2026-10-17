@@ -15,6 +15,9 @@ tools/android/*
 !tools/android/fetch-deps.sh
 tools/win-deps/
 
+# 字体生成源(Noto Sans CJK,约 17MB,由 tools/make_font.py --src 指定或自动查找)
+tools/fonts-src/
+
 # Android 预编译库(用 tools/android/build-android.sh 重新生成)
 android-project/app/libs/
 .act-tools/

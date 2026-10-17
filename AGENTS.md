@@ -24,11 +24,11 @@
 | 版本 | 技术 |
 | --- | --- |
 | 桌面/移动 | C++20,SDL3(3.2.10,Linux 本地 vendor/,其他平台系统依赖或交叉源码),SDL3_ttf(3.2.2) |
-| 平台 | Linux(X11/Wayland)✅ / Windows 10/11 ✅可构建 / macOS 11+ ⚠️ / Android 10+ ⚠️构建链 / iOS 13+ ⚠️ |
+| 平台 | Linux(X11/Wayland)✅ / Windows 10/11 ✅(原生 MSVC 验证) / macOS 11+ ⚠️ / Android 10+ ⚠️构建链 / iOS 13+ ⚠️ |
 | 已移除 | TypeScript + Vite + Canvas(2026-08-06,备份于 /tmp,勿恢复为维护对象) |
 
 - Linux 依赖本地化在 `vendor/`(Debian 官方包解包),**不修改、不升级**
-- 交叉编译依赖源码在 `tools/android/`(SDL3/SDL3_ttf/freetype 源码 + NDK,由 `tools/android/build-android.sh` 使用),`tools/win-deps/`(SDL3 mingw 开发包)
+- 交叉编译依赖源码在 `tools/android/`(SDL3/SDL3_ttf/freetype 源码 + NDK,由 `tools/android/build-android.sh` 使用);Windows 依赖为 `tools/win-deps/vc/`(官方 MSVC 开发包,`tools/fetch-win-deps.ps1` 下载;`tools/win-deps/*mingw*` 为旧交叉编译包)
 
 ## 目录结构
 
@@ -47,10 +47,10 @@ BreakOut/
 ├── README.md            用户文档:构建/运行/平台矩阵
 ├── src/                 C++ 源码(见模块职责)
 ├── assets/fonts/        内置子集字体(tools/make_font.py 生成,勿手改)
-├── tools/               工具与交叉依赖(mingw 工具链/Android NDK+源码/字体生成脚本)
+├── tools/               工具与交叉依赖(Windows 依赖获取/字体生成/Android NDK+源码)
 ├── android-project/     Android Gradle 工程(预编译 so 模式)
 ├── vendor/              SDL3 + SDL3_ttf 本地依赖(Linux 专用,只读)
-├── build/  build-win/  build-android/   构建产物(可删除重建;含字体/so)
+├── build/               构建产物(可删除重建;Windows 为 build/msvc-vs,Android 输出 build-android/)
 └── shots/               截图测试产物(可删除)
 ```
 
@@ -70,6 +70,8 @@ BreakOut/
 
 ## 开发命令
 
+Linux(当前以 Windows 为开发机,Linux 回归在 CI/容器执行):
+
 ```bash
 cmake -B build -DCMAKE_BUILD_TYPE=Release   # 配置(自动找 vendor/)
 cmake --build build -j                      # 构建(要求零错误零警告)
@@ -80,6 +82,21 @@ cmake --build build -j                      # 构建(要求零错误零警告)
 ./build/neon-breaker --resize 1280x800 --screenshot s.bmp # 模拟窗口缩放后截图
 SDL_VIDEODRIVER=dummy ./build/neon-breaker ...           # 无头冒烟测试
 ```
+
+Windows(原生 MSVC;依赖在 `tools/win-deps/vc/`,由脚本下载,CMake 自动加入搜索路径):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/fetch-win-deps.ps1 [-Proxy http://127.0.0.1:7897]
+cmake -S . -B build -G "Visual Studio 18 2026" -A x64   # 或 -G Ninja(见下方注意事项)
+cmake --build build --config Release                      # 要求零错误零警告
+build\Release\neon-breaker.exe --aim-test
+build\Release\neon-breaker.exe --level 3 --auto --screenshot shot.bmp
+$env:SDL_VIDEODRIVER='dummy'; build\Release\neon-breaker.exe --screenshot shot.bmp
+```
+
+- MSVC 的 `/W4 /utf-8 /EHsc` 由 `CMakeLists.txt` 统一添加(源码 UTF-8 无 BOM,缺 `/utf-8` 在中文系统会编译失败)
+- 构建后自动复制 `SDL3.dll` / `SDL3_ttf.dll` 与字体到产物目录
+- 本机 VS 生成器验证通过;Ninja 生成器在受限 shell 下曾出现卡死,若本机可用可自行选用
 
 ## 架构原则(不得破坏)
 
@@ -99,7 +116,7 @@ SDL_VIDEODRIVER=dummy ./build/neon-breaker ...           # 无头冒烟测试
 - **`main.cpp` 的测试参数保留**:`--screenshot` / `--level` / `--auto` / `--resize` / `--aim-test` 是冒烟测试基础设施,新增参数不得破坏既有行为
 - **`assets/fonts/` 勿手改**:由 `tools/make_font.py` 重新生成(字符集变化时重跑)
 - **`android-project/` 为预编译 so 模式**:`libmain.so` 由 `tools/android/build-android.sh` 产出后放入 `app/libs/<abi>/`;不启用 Gradle externalNativeBuild
-- **交叉依赖源码**(`tools/android/`、`tools/win-deps/`):仅构建用途,版本固定(SDL3 3.2.10 / SDL3_ttf 3.2.2 / NDK r27c),不修改
+- **交叉依赖源码**(`tools/android/`、`tools/win-deps/`):仅构建用途,版本固定(SDL3 3.2.10 / SDL3_ttf 3.2.2 / NDK r27c),不修改;`tools/win-deps/vc/` 由 `tools/fetch-win-deps.ps1` 下载,`tools/fonts-src/` 为字体生成源,二者均被 `.gitignore` 忽略
 - **CI 基础设施**(`.github/workflows/ci.yml`、`vcpkg.json`):依赖版本与安装步骤变更须保持三平台可构建(见验证规则 8);`vcpkg.json` 仅 Windows 生效,不影响 Linux/macOS 构建
 - `build/`、`build-win/`、`build-android/`、`shots/` 为可再生物,可删除
 - `.reasonix/` 为工具配置目录,不修改
@@ -107,21 +124,22 @@ SDL_VIDEODRIVER=dummy ./build/neon-breaker ...           # 无头冒烟测试
 
 ## 编码规范
 
-- C++20;`-Wall -Wextra` 零警告;类型安全优先(`std::vector` 等标准容器)
+- C++20;`-Wall -Wextra` 零警告;MSVC 下为 `/W4 /utf-8 /EHsc`(由 CMake 统一添加),要求同样零警告
 - **`std::vector` 引用失效**:元素被 `erase` 后引用/迭代器失效;遍历中删除须按 id 重查或先拷贝(见 `game.cpp` 的 `hitBrick`/`explode`)
 - 源文件 UTF-8;非 ASCII 文本字面量可用转义(`\xe2\x86\xbb` 等),避免依赖编译器默认编码
+- 新增 UI 符号须确认内置字体有对应字形(Noto Sans CJK 不含 `✦`/`↻`/`⚫` 等),否则会渲染成豆腐块;改字符集后重跑 `tools/make_font.py`(会同时扫描源码字面量与 `\xNN` 转义字符)
 - 颜色值以 `#rrggbb` / `rgba(r,g,b,a)` 字符串存储与解析
 - 纯逻辑(如方向计算)优先做成静态可测函数,并配 `--*-test` 无头自检
 
 ## 验证规则(改动后必须)
 
-1. `cmake --build build -j` 零错误零警告
+1. `cmake --build build -j`(Linux)/ `cmake --build build --config Release`(Windows)零错误零警告
 2. 涉及纯逻辑:对应自检(`--aim-test` 等)通过
-3. `SDL_VIDEODRIVER=dummy ./build/neon-breaker --screenshot shots/x.bmp` 退出码 0 且生成 BMP
+3. `SDL_VIDEODRIVER=dummy ./build/neon-breaker --screenshot shots/x.bmp` 退出码 0 且生成 BMP(Windows 用 `$env:SDL_VIDEODRIVER='dummy'; build\Release\neon-breaker.exe ...`)
 4. 涉及玩法/UI 的改动:真实显示(DISPLAY 可用时)运行或截图验证
-5. 涉及存档:检查 `~/.local/share/NeonBreaker/settings/settings.kv` 读写
+5. 涉及存档:检查 `~/.local/share/NeonBreaker/settings/settings.kv` 读写(Windows:`%APPDATA%\NeonBreaker\settings\settings.kv`)
 6. 涉及输入:验证键盘(空格/Esc/R/A/D/方向键)与鼠标路径
-7. **跨平台改动**:平台分支代码必须保持其余平台可编译——桌面改动跑 Linux 回归;触碰移动端分支时用 `tools/android/build-android.sh` 交叉编译验证;Windows 分支用 `tools/mingw-toolchain.cmake` 交叉编译验证
+7. **跨平台改动**:平台分支代码必须保持其余平台可编译——桌面改动至少跑 Windows 原生 MSVC 构建(本机)与 Linux 回归(CI/容器);触碰移动端分支时用 `tools/android/build-android.sh` 交叉编译验证;旧 mingw 交叉编译路径(`tools/mingw-toolchain.cmake`)保留但非主验证路径
 8. **CI 一致性**:`.github/workflows/ci.yml` 自动覆盖全平台——桌面三平台(Linux/macOS/Windows)构建+自检+截图冒烟、Android(NDK 交叉编译 + Gradle APK)、iOS(模拟器交叉编译);涉及依赖/构建链的改动须保证 CI 通过(本地可用 act 预览:`act -j build-test --matrix "os:ubuntu-latest"`、`act -j android-build`、`act -j android-apk`);`vcpkg.json` 依赖变更须经全平台验证
 
 ## 工作规则

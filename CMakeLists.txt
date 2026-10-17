@@ -9,7 +9,9 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 if(MSVC)
-  add_compile_options(/W4)
+  # /utf-8  源码为 UTF-8(无 BOM)且含中文字面量,默认按系统 ANSI 代码页解析会乱码/编译失败
+  # /EHsc   启用 C++ 异常展开语义(storage.cpp 等处使用 try/catch,缺省会触发 C4530)
+  add_compile_options(/W4 /utf-8 /EHsc)
 else()
   add_compile_options(-Wall -Wextra)
 endif()
@@ -23,7 +25,11 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   find_package(SDL3 CONFIG REQUIRED)
   find_package(SDL3_ttf CONFIG REQUIRED)
 elseif(WIN32)
-  # Windows:通过 vcpkg 安装 SDL3 SDL3-ttf(vcpkg install sdl3 sdl3-ttf),或手动提供 CMake config
+  # Windows:优先使用 vcpkg(vcpkg install sdl3 sdl3-ttf);
+  # 也可用 tools/fetch-win-deps.ps1 下载官方 MSVC 开发包到 tools/win-deps/vc/(自动加入搜索路径)
+  file(GLOB _win_vc_sdl "${CMAKE_SOURCE_DIR}/tools/win-deps/vc/SDL3-*")
+  file(GLOB _win_vc_ttf "${CMAKE_SOURCE_DIR}/tools/win-deps/vc/SDL3_ttf-*")
+  list(APPEND CMAKE_PREFIX_PATH ${_win_vc_sdl} ${_win_vc_ttf})
   find_package(SDL3 CONFIG REQUIRED)
   find_package(SDL3_ttf CONFIG REQUIRED)
 elseif(ANDROID)
@@ -120,6 +126,17 @@ add_custom_command(TARGET neon-breaker POST_BUILD
           $<TARGET_FILE_DIR:neon-breaker>/assets/fonts
   COMMENT "复制内置字体到构建目录"
 )
+
+# Windows 开发运行:把 SDL3/SDL3_ttf 运行库复制到 exe 同目录(等价于 vcpkg applocal)
+if(WIN32 AND CMAKE_VERSION VERSION_GREATER_EQUAL 3.21)
+  add_custom_command(TARGET neon-breaker POST_BUILD
+    COMMAND ${CMAKE_COMMAND}
+            -DDEST=$<TARGET_FILE_DIR:neon-breaker>
+            "-DDLLS=$<TARGET_RUNTIME_DLLS:neon-breaker>"
+            -P ${CMAKE_SOURCE_DIR}/tools/copy-runtime-dlls.cmake
+    COMMENT "复制 SDL 运行库到构建目录"
+  )
+endif()
 
 # 运行期库路径:仅 Linux vendor 需要(产物在 build/,SDL 库在 ../vendor/usr/lib/x86_64-linux-gnu)
 if(USE_VENDOR_RPATH)

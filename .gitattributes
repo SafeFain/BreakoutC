@@ -1,0 +1,18 @@
+# 换行策略:Windows 工作副本默认可为 CRLF,但脚本与包装器必须保持 LF
+# (Linux CI 与 Android Gradle Wrapper 依赖 shebang,CRLF 会导致 "bad interpreter")
+*.sh    text eol=lf
+*.bash  text eol=lf
+gradlew text eol=lf
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+
+# 二进制资源:禁止文本转换,避免跨平台副本被改写
+*.otf binary
+*.ttf binary
+*.ttc binary
+*.bmp binary
+*.so    binary
+*.dll   binary
+*.lib   binary
+*.a     binary
+*.zip   binary

@@ -4,7 +4,23 @@
 
 ## 当前任务
 
-**无进行中任务**(上一任务:自动 CD 发布流水线,已于 2026-08-06 完成并归档)。
+**无进行中任务**(上一任务:Windows 开发环境迁移修复,已于 2026-10-17 完成并归档)。
+
+## 上一任务:Windows 开发环境迁移修复(已完成)
+
+| # | 步骤 | 状态 | 说明 |
+| --- | --- | --- | --- |
+| 1 | 环境盘点 | ✅ | VS 18 / MSVC 19.51 / CMake 4.3.1 / Ninja 1.13.2;无 vcpkg、无 MinGW;Clash 代理 7897 可用 |
+| 2 | MSVC 构建链 | ✅ | `/W4 /utf-8 /EHsc`;自动查找 `tools/win-deps/vc/`;构建后复制 SDL DLL + 字体 |
+| 3 | 警告清零 | ✅ | `sscanf` → strtol/strtof;`TTF_SetFontSize` 传 float;0 warning / 0 error |
+| 4 | 内置字体 | ✅ | 补空格与 `\xNN` 转义字符(578 字符/113KB);`✦`/`↻`/`⚫` → `＊`/`♻`/`×` |
+| 5 | Git 卫生 | ✅ | `.gitattributes`;`core.filemode=false`;vendor 链接占位恢复,status 干净 |
+| 6 | 工具/文档 | ✅ | `tools/fetch-win-deps.ps1`、`tools/copy-runtime-dlls.cmake`;README/AGENTS 同步 |
+| 7 | 清理与验证 | ✅ | 删 `build-win/`、`build-android/`、`.act-tools/`(约 1GB);构建/自检/截图全绿 |
+
+**本次修改文件**:`CMakeLists.txt`、`src/{main,renderer,ui}.cpp`、`tools/{make_font.py,fetch-win-deps.ps1,copy-runtime-dlls.cmake}`、`assets/fonts/NotoSansSC-Bold-subset.otf`、`.gitattributes`、`.gitignore`、`README.md`、`AGENTS.md`、`PLAN.md`、`TASKS.md`、`PROGRESS.md`、`docs/tasks/archive/2026-10-17-windows-migration.md`
+
+**遗留**:Linux 回归待 CI(本机无 g++/WSL);Android 需 windows-x86_64 NDK;macOS/iOS 未实测。
 
 ## 上一任务:自动 CD 发布流水线(已完成)
 
@@ -73,9 +89,10 @@
 
 ## 验证结果存档
 
-- Linux:`cmake --build build -j8` 零警告;`--aim-test` ALL PASS;dummy 截图回归(state=2)
-- Windows:交叉编译零警告,`build-win/neon-breaker.exe` 706KB
-- Android:交叉编译零警告,`build-android/libmain.so` 18.4MB(arm64-v8a,ELF for Android 29,readelf 仅系统库)
+- Linux:`cmake --build build -j8` 零警告;`--aim-test` ALL PASS;dummy 截图回归(state=2)(2026-08-06 记录)
+- Windows(2026-10-17,原生 MSVC):配置 26s、构建 54s、零警告零错误;`--aim-test` ALL PASS;dummy/真实窗口截图正常;字体/空格/符号渲染正常;存档 7 字段写入/读回一致并经真实启动应用(经 junction 验证)
+- Windows(2026-10-17,mingw 交叉,历史):零警告,`build-win/neon-breaker.exe` 706KB(产物已清理)
+- Android:交叉编译零警告,`build-android/libmain.so` 18.4MB(arm64-v8a,ELF for Android 29,readelf 仅系统库)(产物已清理)
 - wine 冒烟:容器 `/run/user/1000` 只读,wineserver 无法启动(环境限制)
 
 ## 修改过的文件
@@ -84,9 +101,17 @@
 
 ## 当前错误/阻塞
 
-无。遗留人工项:macOS/iOS 实测、Android APK 组装与真机、wine 冒烟(环境限制)。
+无阻塞。遗留人工项:Linux 回归(待 CI/原 Linux 机器)、Android 需 windows-x86_64 NDK、macOS/iOS 实测、wine 冒烟(环境限制)。
 
 ## 整理/迁移记录(2026-08-06)
 
 - 状态文件体系按 1.txt 规范建立(CLAUDE.md 不存在,事实来源为代码+README);此后每个任务完成后同步归档与索引
 - 跨平台任务归档见 `docs/tasks/archive/2026-08-06-cross-platform.md`
+
+## 迁移记录(2026-10-17,Linux → Windows)
+
+- 仓库以整目录复制搬迁(非 clone):`vendor/` 符号链接实体化、可执行位丢失、`core.autocrlf` 未配置;
+  已按 Windows 正常检出状态恢复(链接占位 + `core.filemode=false` + `.gitattributes`)
+- 开发构建改为原生 MSVC + `tools/win-deps/vc/` 官方开发包;mingw 交叉路径降级为备用
+- 迁移垃圾已清理:`build-win/`、`build-android/`、`.act-tools/`、`build/` 下 Linux 产物(约 1GB)
+- 归档见 `docs/tasks/archive/2026-10-17-windows-migration.md`

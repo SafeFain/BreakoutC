@@ -22,6 +22,7 @@
 | 配置 GitHub Actions CI(Linux/macOS/Windows 三平台自动构建+自检) | 2026-08-06 | `docs/tasks/archive/2026-08-06-github-actions-ci.md` |
 | CI 拓展至 Android 与 iOS(libmain.so / APK / 模拟器交叉编译) | 2026-08-06 | `docs/tasks/archive/2026-08-06-ci-android-ios.md` |
 | 自动 CD 发布流水线(tag 触发五平台产物 + GitHub Release) | 2026-08-06 | `docs/tasks/archive/2026-08-06-cd-release.md` |
+| Windows 开发环境迁移修复(MSVC UTF-8/EHsc、字体空格与符号、Git 卫生、依赖脚本) | 2026-10-17 | `docs/tasks/archive/2026-10-17-windows-migration.md` |
 
 ## 备注
 

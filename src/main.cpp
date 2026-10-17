@@ -47,6 +47,19 @@ static int runAimTest() {
   return 1;
 }
 
+// 解析 "1280x800" 形式的窗口尺寸(手工解析,避免 MSVC 对 sscanf 的 C4996 警告)
+static bool parseSize(const char* s, int& w, int& h) {
+  char* end = nullptr;
+  const long width = std::strtol(s, &end, 10);
+  if (end == s || (*end != 'x' && *end != 'X')) return false;
+  const char* hs = end + 1;
+  const long height = std::strtol(hs, &end, 10);
+  if (end == hs || *end != '\0' || width <= 0 || height <= 0 || width > 20000 || height > 20000) return false;
+  w = static_cast<int>(width);
+  h = static_cast<int>(height);
+  return true;
+}
+
 // 与 web 版 main.ts 对应的入口:装配 + 事件循环 + 每帧渲染
 int main(int argc, char* argv[]) {
   std::string screenshotPath;
@@ -60,7 +73,7 @@ int main(int argc, char* argv[]) {
     else if (std::strcmp(argv[i], "--auto") == 0) autoStart = true;
     else if (std::strcmp(argv[i], "--aim-test") == 0) aimTest = true;
     else if (std::strcmp(argv[i], "--resize") == 0 && i + 1 < argc) {
-      if (std::sscanf(argv[++i], "%dx%d", &resizeW, &resizeH) != 2) { resizeW = resizeH = 0; }
+      if (!parseSize(argv[++i], resizeW, resizeH)) { resizeW = resizeH = 0; }
     }
   }
   if (aimTest) return runAimTest();
