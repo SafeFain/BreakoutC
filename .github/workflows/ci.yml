@@ -63,6 +63,9 @@ jobs:
       - name: Build (zero warnings)
         run: cmake --build build -j ${{ matrix.build_config }}
 
+      - name: Print version
+        run: ${{ matrix.exe }} --version
+
       - name: Self-test --aim-test (sticky launch direction)
         run: ${{ matrix.exe }} --aim-test
 

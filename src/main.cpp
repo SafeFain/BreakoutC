@@ -18,6 +18,10 @@
 
 using namespace neon;
 
+#ifndef NEON_VERSION_STRING
+#define NEON_VERSION_STRING "unknown"
+#endif
+
 // --aim-test 无头自检:验证粘球发射方向计算(方向向量/最小仰角/默认回退)
 static int runAimTest() {
   int failures = 0;
@@ -66,15 +70,21 @@ int main(int argc, char* argv[]) {
   int startLevel = 1;
   bool autoStart = false;
   bool aimTest = false;
+  bool showVersion = false;
   int resizeW = 0, resizeH = 0;
   for (int i = 1; i < argc; i++) {
     if (std::strcmp(argv[i], "--screenshot") == 0 && i + 1 < argc) screenshotPath = argv[++i];
     else if (std::strcmp(argv[i], "--level") == 0 && i + 1 < argc) startLevel = std::atoi(argv[++i]);
     else if (std::strcmp(argv[i], "--auto") == 0) autoStart = true;
     else if (std::strcmp(argv[i], "--aim-test") == 0) aimTest = true;
+    else if (std::strcmp(argv[i], "--version") == 0) showVersion = true;
     else if (std::strcmp(argv[i], "--resize") == 0 && i + 1 < argc) {
       if (!parseSize(argv[++i], resizeW, resizeH)) { resizeW = resizeH = 0; }
     }
+  }
+  if (showVersion) {
+    std::printf("Neon Breaker %s\n", NEON_VERSION_STRING);
+    return 0;
   }
   if (aimTest) return runAimTest();
   if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO)) {

@@ -2,6 +2,28 @@ plugins {
      id 'com.android.application'
 }
 
+// Version comes from the repository-root VERSION file (single source of truth).
+def versionFile = new File(rootProject.projectDir.parentFile, 'VERSION')
+def versionPattern = java.util.regex.Pattern.compile('^v([0-9]+)\\.([0-9]+)\\.([0-9]+)-(alpha|beta|rc|release)\\.([0-9]+)$')
+def versionMatcher = versionPattern.matcher(versionFile.text.trim())
+if (!versionMatcher.matches()) {
+    throw new GradleException("Invalid VERSION file (${versionFile}): expected v1.<minor>.<patch>-<alpha|beta|rc|release>.<build>")
+}
+def versionMajor = versionMatcher.group(1) as int
+def versionMinor = versionMatcher.group(2) as int
+def versionPatch = versionMatcher.group(3) as int
+def versionStage = versionMatcher.group(4)
+def versionBuild = versionMatcher.group(5) as int
+def stageRanks = [alpha: 1, beta: 2, rc: 3, release: 4]
+def effectiveBuild = (versionStage == 'release') ? 0 : versionBuild
+if (versionMinor > 999 || versionPatch > 999 || effectiveBuild > 999) {
+    throw new GradleException("VERSION components exceed the versionCode mapping (minor/patch/build <= 999)")
+}
+def versionCodeValue = versionMajor * 100000000 + versionMinor * 1000000 + versionPatch * 10000 + stageRanks[versionStage] * 1000 + effectiveBuild
+def versionNameValue = (versionStage == 'release') ? "${versionMajor}.${versionMinor}.${versionPatch}" : "${versionMajor}.${versionMinor}.${versionPatch}-${versionStage}.${versionBuild}"
+if (versionCodeValue > 2100000000) {
+    throw new GradleException("VERSION maps to versionCode ${versionCodeValue}, exceeding the Android maximum")
+}
 
 android {
     namespace = "org.libsdl.app"
@@ -9,8 +31,8 @@ android {
     defaultConfig {
         minSdkVersion 29
         targetSdkVersion 35
-        versionCode 1
-        versionName "1.0"
+        versionCode versionCodeValue
+        versionName versionNameValue
         // 预编译 .so 方式:libmain.so 由 tools/android 交叉编译后放入 app/libs/<abi>/
         // (不再使用 externalNativeBuild;SDL3/SDL3_ttf/freetype 均静态链接进 libmain.so)
     }

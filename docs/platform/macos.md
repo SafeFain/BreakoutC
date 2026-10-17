@@ -26,6 +26,7 @@ Notes:
 - The `APPLE` branch in `CMakeLists.txt` automatically searches `/opt/homebrew` (Apple Silicon) and `/usr/local` (Intel); `-DCMAKE_PREFIX_PATH="$(brew --prefix)"` is a fallback.
 - The build produces a plain `neon-breaker` executable. It also runs inside an app bundle (see below).
 - The bundled font is copied to `assets/fonts/` next to the binary after the build; at runtime the game loads it through `SDL_GetBasePath()`, which is app-bundle compatible.
+- The version comes from the repository-root `VERSION` file; `./build/neon-breaker --version` prints the derived version (for example `v1.0.0-release`).
 
 ## Packaging as a .app (optional)
 
@@ -52,6 +53,8 @@ EOF
 ```
 
 Inside the app bundle, `SDL_GetBasePath()` returns the bundle's `Contents/Resources` directory, so the renderer looks for `Contents/Resources/assets/fonts/`; place the files as shown above. If the font is missing, the renderer falls back to the system PingFang font (`/System/Library/Fonts/PingFang.ttc`).
+
+If you distribute the optional bundle, set `CFBundleShortVersionString` to the semantic version from `VERSION` and `CFBundleVersion` to the numeric version code (the same mapping the iOS build uses).
 
 ## Fonts
 

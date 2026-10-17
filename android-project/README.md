@@ -68,6 +68,15 @@ Everything under `tools/android/` is fetched by `tools/android/fetch-deps.sh` (o
   `cp assets/fonts/NotoSansSC-Bold-subset.otf android-project/app/src/main/assets/fonts/`
 - Loading: the `__ANDROID__` branch in `renderer.cpp` uses the relative path `fonts/NotoSansSC-Bold-subset.otf`. On Android, SDL3's `SDL_IOFromFile` maps that to APK assets through `AAssetManager_open`; `SDL_GetBasePath()` returns `NULL`, so it is not used.
 
+## Version
+
+`app/build.gradle` reads the repository-root `VERSION` file and derives the APK metadata:
+
+- `versionName`: `1.0.0` for `release`, or `1.0.0-alpha.1` / `1.0.0-beta.1` / `1.0.0-rc.1` for pre-release stages.
+- `versionCode`: `major*100000000 + minor*1000000 + patch*10000 + stage_rank*1000 + build`, with `stage_rank` = alpha 1, beta 2, rc 3, release 4. For `release` the build counter is ignored (treated as 0).
+
+The manifest no longer hardcodes `versionCode` / `versionName`; Gradle supplies both at merge time.
+
 ## Input and lifecycle
 
 - Touch: SDL `SDL_EVENT_FINGER_*` events (the input manager supports them, including sticky-ball aiming).

@@ -17,6 +17,8 @@ The `--no-ndk` flag skips the ~660 MB Android NDK download; the iOS build only n
 
 The `IOS` branch in `CMakeLists.txt` builds SDL3, SDL3_ttf (with vendored FreeType), and the game into a `.app` bundle using [`assets/ios/Info.plist`](../../assets/ios/Info.plist).
 
+At configure time CMake rewrites the two version keys from the repository-root [`VERSION`](../../VERSION): `CFBundleShortVersionString` becomes the semantic version, and `CFBundleVersion` becomes the numeric version code. The values checked into the source plist are placeholders and are not used by the CMake build.
+
 ### Simulator (arm64 + x86_64)
 
 ```bash
@@ -62,7 +64,7 @@ SDL3 ships an Xcode project in its source tree:
 3. Add `src/*.cpp` and `src/*.h` to the app target.
 4. Link the static SDL3 / SDL3_ttf / FreeType libraries and the system frameworks required by SDL3 (UIKit, CoreGraphics, QuartzCore, AVFoundation, and others listed by the SDL template).
 5. Add `assets/fonts/NotoSansSC-Bold-subset.otf` to the bundle resources (`assets/fonts/` or `fonts/`).
-6. Set `IPHONEOS_DEPLOYMENT_TARGET=13.0`.
+6. Set `IPHONEOS_DEPLOYMENT_TARGET=13.0` and fill `CFBundleShortVersionString` / `CFBundleVersion` from the root `VERSION` file (the CMake build does this automatically).
 
 ## Info.plist
 

@@ -6,6 +6,9 @@ gradlew text eol=lf
 *.bat   text eol=crlf
 *.cmd   text eol=crlf
 
+# 版本文件按行解析,固定 LF,避免 Windows 检出为 CRLF 后带 \r
+VERSION text eol=lf
+
 # 二进制资源:禁止文本转换,避免跨平台副本被改写
 *.otf binary
 *.ttf binary
