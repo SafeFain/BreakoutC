@@ -1,13 +1,51 @@
-# 构建产物
+# ===== 构建产物(可删除重建)=====
 build/
-build-win/
-build-android/
+build-*/
+out/
+cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CMakeUserPresets.json
+compile_commands.json
 
-# 截图测试产物
+# 编译中间件与可执行文件
+*.o
+*.obj
+*.exe
+*.dll
+*.pdb
+*.ilk
+*.exp
+*.lib
+*.user
+*.suo
+.vs/
+
+# Android / Gradle 构建产物
+.gradle/
+local.properties
+android-project/app/build/
+android-project/app/libs/
+*.apk
+*.aab
+*.iml
+.idea/
+
+# 截图测试产物(shots/ 目录与根目录临时 BMP)
 shots/
+/*.bmp
+
+# ===== Agent 工作文档(本地维护,不入库)=====
+AGENTS.md
+PLAN.md
+PROGRESS.md
+TASKS.md
+docs/tasks/
 
 # 工具配置目录
 .reasonix/
+.act-tools/
 
 # 交叉编译依赖(约 2.7GB,用 tools/android/fetch-deps.sh 重新获取)
 tools/android/*
@@ -18,6 +56,8 @@ tools/win-deps/
 # 字体生成源(Noto Sans CJK,约 17MB,由 tools/make_font.py --src 指定或自动查找)
 tools/fonts-src/
 
-# Android 预编译库(用 tools/android/build-android.sh 重新生成)
-android-project/app/libs/
-.act-tools/
+# 系统 / Python 杂项
+.DS_Store
+Thumbs.db
+desktop.ini
+__pycache__/

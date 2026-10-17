@@ -25,111 +25,99 @@ jobs:
             exe: ./build/neon-breaker
           - name: Windows
             os: windows-latest
-            cmake_args: ""   # 配置步骤走独立 Windows 分支(pwsh + vcpkg toolchain)
+            cmake_args: ""   # Windows uses a dedicated configure step (pwsh + vcpkg toolchain)
             build_config: --config Release
             exe: ./build/Release/neon-breaker.exe
 
     steps:
       - uses: actions/checkout@v5
 
-      - name: 安装依赖(Linux)
+      - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          # 构建工具(GitHub runner 预装,act 镜像需要;显式安装幂等)
+          # Build tools (preinstalled on GitHub runners; installed explicitly for act images)
           sudo apt-get install -y cmake g++
-          # vendor/ 内 SDL3 3.2.10 的运行时依赖(ubuntu-24.04 包名)
+          # Runtime libraries for the vendored SDL3 3.2.10 (ubuntu-24.04 package names)
           sudo apt-get install -y \
             libasound2t64 libx11-6 libxext6 libxcursor1 libxi6 libxfixes3 \
             libxrandr2 libxss1 libpipewire-0.3-0 libpulse0 libsndio7.0 \
             libdrm2 libgbm1 libwayland-client0 libwayland-egl1 libwayland-cursor0 \
             libxkbcommon0 libdecor-0-0 libharfbuzz0b libfreetype6
 
-      - name: 安装依赖(macOS)
+      - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
         run: |
-          brew untap aws/tap 2>/dev/null || true   # runner 预置 tap 触发 trust 警告,与本构建无关
+          brew untap aws/tap 2>/dev/null || true   # Preinstalled tap triggers trust warnings; unrelated to this build
           brew install sdl3 sdl3_ttf
 
-      - name: 配置(Windows)
+      - name: Configure (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: cmake -B build -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows
 
-      - name: 配置(Linux/macOS)
+      - name: Configure (Linux/macOS)
         if: runner.os != 'Windows'
         run: cmake -B build ${{ matrix.cmake_args }}
 
-      - name: 构建(要求零警告)
+      - name: Build (zero warnings)
         run: cmake --build build -j ${{ matrix.build_config }}
 
-      - name: 自检 --aim-test(粘球发射方向)
+      - name: Self-test --aim-test (sticky launch direction)
         run: ${{ matrix.exe }} --aim-test
 
-      - name: 无头冒烟(截图回归)
+      - name: Headless smoke test (screenshot regression)
         env:
           SDL_VIDEODRIVER: dummy
         run: ${{ matrix.exe }} --level 3 --auto --screenshot ci-smoke.bmp
 
-      - name: 上传冒烟截图
+      - name: Upload smoke screenshot
         uses: actions/upload-artifact@v6
         with:
           name: smoke-${{ matrix.name }}
           path: ci-smoke.bmp
           if-no-files-found: error
 
-  android-build:
-    name: Android (libmain.so)
+  android:
+    name: Android
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
 
-      - name: 安装构建工具
+      - name: Install build tools
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build make g++ unzip
 
-      - name: 缓存交叉编译依赖(NDK + SDL 源码)
+      - name: Cache cross-compile dependencies (NDK + SDL sources)
         uses: actions/cache@v5
-        continue-on-error: true   # 缓存缺失/不可用时降级为重新下载,不阻塞构建
+        continue-on-error: true   # Fall back to a fresh download when the cache is unavailable
         with:
           path: tools/android
           key: android-deps-ndk-r27c-sdl-3.2.10-${{ runner.os }}
 
-      - name: 获取依赖(NDK ~660MB + SDL3 源码)
+      - name: Fetch dependencies (NDK ~660 MB + SDL3 sources)
         run: tools/android/fetch-deps.sh
 
-      - name: 交叉编译 libmain.so(零警告)
+      - name: Cross-compile libmain.so (zero warnings)
         run: tools/android/build-android.sh
 
-      - name: 验证产物
+      - name: Verify libmain.so
         run: file build-android/libmain.so
 
-      - name: 上传 libmain.so
+      - name: Upload libmain.so
         uses: actions/upload-artifact@v6
         with:
           name: libmain.so
           path: build-android/libmain.so
           if-no-files-found: error
 
-  android-apk:
-    name: Android (APK)
-    runs-on: ubuntu-latest
-    needs: android-build
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: actions/download-artifact@v7
-        with:
-          name: libmain.so
-          path: android-project/app/libs/arm64-v8a/
-
-      - name: 准备 JDK 与 Android SDK
+      - name: Prepare JDK and Android SDK
         run: |
-          # JDK(runner 预装,act 容器需要;幂等)
+          # JDK (preinstalled on runners; installed explicitly for act images)
           sudo apt-get update
           sudo apt-get install -y openjdk-17-jdk-headless
-          # SDK:runner 预置;无预置(如本地 act)时下载 cmdline-tools
+          # SDK: use the preinstalled copy when available, otherwise download cmdline-tools
           if [ -z "${ANDROID_SDK_ROOT:-}" ] || [ ! -d "$ANDROID_SDK_ROOT" ]; then
             mkdir -p "$HOME/android-sdk/cmdline-tools"
             curl -sL -o /tmp/clt.zip "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
@@ -138,44 +126,47 @@ jobs:
             export ANDROID_SDK_ROOT="$HOME/android-sdk"
             echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> "$GITHUB_ENV"
           fi
-          # 统一把 sdkmanager 加入 PATH(runner 预置与自装两种布局)
+          # Add sdkmanager to PATH for both the preinstalled and the downloaded layouts
           if [ -d "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" ]; then
             echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
           fi
 
-      - name: 安装 Android SDK 组件
+      - name: Install Android SDK components
         run: |
           sdkmanager --install "platforms;android-35" "build-tools;35.0.0" --sdk_root="$ANDROID_SDK_ROOT"
           yes | sdkmanager --licenses --sdk_root="$ANDROID_SDK_ROOT" >/dev/null 2>&1 || true
 
-      - name: 组装 Debug APK
-        run: cd android-project && ./gradlew assembleDebug --no-daemon
+      - name: Assemble debug APK
+        run: |
+          mkdir -p android-project/app/libs/arm64-v8a
+          cp build-android/libmain.so android-project/app/libs/arm64-v8a/
+          cd android-project && ./gradlew assembleDebug --no-daemon
 
-      - name: 上传 APK
+      - name: Upload APK
         uses: actions/upload-artifact@v6
         with:
           name: neon-breaker-debug.apk
           path: android-project/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
-  ios-build:
-    name: iOS (模拟器交叉编译)
+  ios:
+    name: iOS
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5
 
-      - name: 获取 SDL3 源码(无 NDK)
+      - name: Fetch SDL3 sources (no NDK)
         run: tools/android/fetch-deps.sh --no-ndk
 
-      - name: 配置(CMake iOS 模拟器交叉编译)
+      - name: Configure (CMake iOS simulator cross-compilation)
         run: cmake -G Xcode -B build-ios -DCMAKE_SYSTEM_NAME=iOS \
              -DCMAKE_OSX_SYSROOT=iphonesimulator \
              -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
 
-      - name: 构建(零警告)
+      - name: Build (zero warnings)
         run: cmake --build build-ios --config Release -- -sdk iphonesimulator
 
-      - name: 验证产物
+      - name: Verify artifact
         run: |
           APP=$(find build-ios -path "*Release-iphonesimulator/neon-breaker.app" -type d | head -1)
           echo "app bundle: $APP"

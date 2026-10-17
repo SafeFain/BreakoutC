@@ -1,18 +1,18 @@
-# macOS 11+ 构建指南(Neon Breaker)
+# macOS 11+ build guide (Neon Breaker)
 
-> ⚠️ 本文件由 Linux 交叉开发环境编写,未在真实 macOS 上实测。构建命令基于 Homebrew 标准流程,如遇问题按报错调整。
+> **Status**: CI builds and smoke-tests the game on `macos-latest` with Homebrew SDL3 packages, but the build has not been run manually on Mac hardware. The steps below follow the standard Homebrew workflow; adjust them if your environment differs.
 
-## 前置条件
+## Prerequisites
 
-- macOS 11(Big Sur)或更高(Intel 或 Apple Silicon)
+- macOS 11 (Big Sur) or newer (Intel or Apple Silicon)
 - [Homebrew](https://brew.sh)
-- Xcode Command Line Tools(`xcode-select --install`),或完整 Xcode
+- Xcode Command Line Tools (`xcode-select --install`), or the full Xcode installation
 
 ```bash
 brew install sdl3 sdl3_ttf
 ```
 
-## 构建(CMake 方式)
+## Build (CMake)
 
 ```bash
 cd BreakOut
@@ -21,12 +21,13 @@ cmake --build build -j
 ./build/neon-breaker
 ```
 
-说明:
-- `CMakeLists.txt` 的 `APPLE` 分支会自动把 `/opt/homebrew`(Apple Silicon)与 `/usr/local`(Intel)加入搜索路径;`-DCMAKE_PREFIX_PATH="$(brew --prefix)"` 为兜底
-- 构建产物 `neon-breaker` 是 macOS 可执行文件(bundle 内运行亦可,见下)
-- 内置字体通过 POST_BUILD 复制到产物旁 `assets/fonts/`,运行时 `SDL_GetBasePath()` 加载(与 App Bundle 兼容,见下)
+Notes:
 
-## 打包为 .app(可选)
+- The `APPLE` branch in `CMakeLists.txt` automatically searches `/opt/homebrew` (Apple Silicon) and `/usr/local` (Intel); `-DCMAKE_PREFIX_PATH="$(brew --prefix)"` is a fallback.
+- The build produces a plain `neon-breaker` executable. It also runs inside an app bundle (see below).
+- The bundled font is copied to `assets/fonts/` next to the binary after the build; at runtime the game loads it through `SDL_GetBasePath()`, which is app-bundle compatible.
+
+## Packaging as a .app (optional)
 
 ```bash
 mkdir -p neon-breaker.app/Contents/MacOS
@@ -39,7 +40,7 @@ cat > neon-breaker.app/Contents/Info.plist <<'EOF'
 <plist version="1.0">
 <dict>
   <key>CFBundleName</key><string>Neon Breaker</string>
-  <key>CFBundleDisplayName</key><string>霓虹破界</string>
+  <key>CFBundleDisplayName</key><string>Neon Breaker</string>
   <key>CFBundleIdentifier</key><string>com.neonbreaker.app</string>
   <key>CFBundleExecutable</key><string>neon-breaker</string>
   <key>CFBundlePackageType</key><string>APPL</string>
@@ -50,18 +51,18 @@ cat > neon-breaker.app/Contents/Info.plist <<'EOF'
 EOF
 ```
 
-注意:App Bundle 内运行时,内置字体路径相对可执行文件为 `../Resources/assets/fonts/`,需按上面目录结构放置;若字体缺失,渲染器会回退系统苹方(`/System/Library/Fonts/PingFang.ttc`)。
+Inside the app bundle, `SDL_GetBasePath()` returns the bundle's `Contents/Resources` directory, so the renderer looks for `Contents/Resources/assets/fonts/`; place the files as shown above. If the font is missing, the renderer falls back to the system PingFang font (`/System/Library/Fonts/PingFang.ttc`).
 
-## 字体
+## Fonts
 
-优先级:1) 内置子集字体(`assets/fonts/NotoSansSC-Bold-subset.otf`,107KB,随产物分发);2) 系统字体(PingFang / STHeiti / Hiragino Sans GB / Songti)。
+Priority: 1) the bundled subset (`assets/fonts/NotoSansSC-Bold-subset.otf`, ~113 KB, shipped with the build); 2) system fonts (PingFang / STHeiti / Hiragino Sans GB / Songti).
 
-## 已知限制(未实测项)
+## Known limitations
 
-- 本仓库开发环境为 Linux,`APPLE` 分支代码(字体路径、CMake 分支)未在 macOS 编译验证,首次构建如报错请记录并反馈
-- 非 App Store 分发需 ad-hoc 签名:`codesign --force --deep -s - neon-breaker.app`(或开发者证书);Gatekeeper 相关流程见 Apple 文档
-- 沙盒/公证(App Sandbox、notarization)未配置,如需上架需补充 entitlements
+- CI only compiles and smoke-tests the macOS build; the `APPLE` branch (font paths, CMake configuration) has not been exercised manually on macOS hardware.
+- Distribution outside the App Store requires ad-hoc signing: `codesign --force --deep -s - neon-breaker.app` (or a Developer ID certificate). See Apple's Gatekeeper documentation for the full flow.
+- App Sandbox and notarization are not configured; entitlements must be added before distribution through the App Store or a notarized channel.
 
-## iOS 13+ 说明
+## iOS 13+
 
-iOS 构建请见 `docs/platform/ios.md`(需 Xcode + macOS,本仓库仅提供工程配置说明)。
+See [`docs/platform/ios.md`](ios.md) for iOS (Xcode plus macOS required; this repository only documents the cross-compilation setup used by CI).

@@ -10,12 +10,12 @@ permissions:
 
 jobs:
   linux:
-    name: 打包 Linux
+    name: Linux
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
 
-      - name: 安装依赖
+      - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake g++
@@ -25,13 +25,13 @@ jobs:
             libdrm2 libgbm1 libwayland-client0 libwayland-egl1 libwayland-cursor0 \
             libxkbcommon0 libdecor-0-0 libharfbuzz0b libfreetype6
 
-      - name: 配置与构建
+      - name: Configure and build
         run: |
           cmake -B build -DCMAKE_BUILD_TYPE=Release
           cmake --build build -j
           ./build/neon-breaker --aim-test
 
-      - name: 打包(自带 SDL 运行时库,保持 vendor 布局以匹配 rpath)
+      - name: Package (bundled SDL runtime, vendor layout preserved for the RPATH)
         run: |
           mkdir -p pkg/vendor/usr/lib/x86_64-linux-gnu pkg/assets/fonts
           cp build/neon-breaker pkg/
@@ -47,19 +47,19 @@ jobs:
           if-no-files-found: error
 
   windows:
-    name: 打包 Windows
+    name: Windows
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
 
-      - name: 配置与构建
+      - name: Configure and build
         shell: pwsh
         run: |
           cmake -B build -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows
           cmake --build build -j --config Release
           ./build/Release/neon-breaker.exe --aim-test
 
-      - name: 打包(exe + SDL DLL + 字体)
+      - name: Package (exe + SDL DLLs + fonts)
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path pkg/assets/fonts | Out-Null
@@ -75,28 +75,28 @@ jobs:
           if-no-files-found: error
 
   macos:
-    name: 打包 macOS
+    name: macOS
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5
 
-      - name: 安装依赖
+      - name: Install dependencies
         run: |
           brew untap aws/tap 2>/dev/null || true
           brew install sdl3 sdl3_ttf
 
-      - name: 配置与构建
+      - name: Configure and build
         run: |
           cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$(brew --prefix)"
           cmake --build build -j
           ./build/neon-breaker --aim-test
 
-      - name: 打包(dylib 闭包 + @loader_path 重定位 + 字体)
+      - name: Package (dylib closure + @loader_path relocation + fonts)
         run: |
           mkdir -p pkg/assets/fonts
           cp build/neon-breaker pkg/
           cd pkg
-          # 收集 Homebrew dylib 传递闭包(迭代至稳定)
+          # Collect the transitive Homebrew dylib closure (iterate until stable)
           changed=1
           while [ "$changed" = 1 ]; do
             changed=0
@@ -107,7 +107,7 @@ jobs:
               done
             done
           done
-          # 重写引用为 @loader_path(多轮覆盖嵌套依赖)
+          # Rewrite references to @loader_path (several passes for nested dependencies)
           for i in 1 2 3 4; do
             for f in neon-breaker *.dylib; do
               [ -f "$f" ] || continue
@@ -118,7 +118,7 @@ jobs:
           done
           for f in *.dylib; do install_name_tool -id "@loader_path/$f" "$f" 2>/dev/null || true; done
           cp -r ../assets/fonts/* assets/fonts/
-          printf 'Neon Breaker macOS 版\n运行方式: 解压后执行 ./neon-breaker(或双击打开终端运行)\n' > README.txt
+          printf 'Neon Breaker for macOS\nRun: unzip the archive and execute ./neon-breaker from a terminal.\n' > README.txt
           cd ..
           zip -r -y neon-breaker-macos-arm64.zip pkg
 
@@ -129,30 +129,30 @@ jobs:
           if-no-files-found: error
 
   android:
-    name: 打包 Android APK
+    name: Android
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
 
-      - name: 安装构建工具
+      - name: Install build tools
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build make g++ unzip
 
-      - name: 缓存交叉编译依赖(与 CI 共用 key)
+      - name: Cache cross-compile dependencies (shared key with CI)
         uses: actions/cache@v5
         continue-on-error: true
         with:
           path: tools/android
           key: android-deps-ndk-r27c-sdl-3.2.10-${{ runner.os }}
 
-      - name: 获取依赖
+      - name: Fetch dependencies
         run: tools/android/fetch-deps.sh
 
-      - name: 交叉编译 libmain.so
+      - name: Cross-compile libmain.so
         run: tools/android/build-android.sh
 
-      - name: 准备 JDK 与 Android SDK
+      - name: Prepare JDK and Android SDK
         run: |
           sudo apt-get install -y openjdk-17-jdk-headless
           if [ -z "${ANDROID_SDK_ROOT:-}" ] || [ ! -d "$ANDROID_SDK_ROOT" ]; then
@@ -167,18 +167,18 @@ jobs:
             echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
           fi
 
-      - name: 安装 Android SDK 组件
+      - name: Install Android SDK components
         run: |
           sdkmanager --install "platforms;android-35" "build-tools;35.0.0" --sdk_root="$ANDROID_SDK_ROOT"
           yes | sdkmanager --licenses --sdk_root="$ANDROID_SDK_ROOT" >/dev/null 2>&1 || true
 
-      - name: 组装 Debug APK
+      - name: Assemble debug APK
         run: |
           mkdir -p android-project/app/libs/arm64-v8a
           cp build-android/libmain.so android-project/app/libs/arm64-v8a/
           cd android-project && ./gradlew assembleDebug --no-daemon
 
-      - name: 重命名 APK
+      - name: Rename APK
         run: cp android-project/app/build/outputs/apk/debug/app-debug.apk neon-breaker-android-arm64.apk
 
       - uses: actions/upload-artifact@v6
@@ -188,22 +188,22 @@ jobs:
           if-no-files-found: error
 
   ios:
-    name: 打包 iOS(模拟器 + 未签名 IPA)
+    name: iOS
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5
 
-      - name: 获取 SDL3 源码
+      - name: Fetch SDL3 sources
         run: tools/android/fetch-deps.sh --no-ndk
 
-      - name: 构建模拟器 .app
+      - name: Build simulator .app
         run: |
           cmake -G Xcode -B build-ios -DCMAKE_SYSTEM_NAME=iOS \
                -DCMAKE_OSX_SYSROOT=iphonesimulator \
                -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
           cmake --build build-ios --config Release -- -sdk iphonesimulator
 
-      - name: 构建真机 .app(未签名,iphoneos)
+      - name: Build device .app (unsigned, iphoneos)
         run: |
           cmake -G Xcode -B build-ios-device -DCMAKE_SYSTEM_NAME=iOS \
                -DCMAKE_OSX_SYSROOT=iphoneos \
@@ -212,23 +212,23 @@ jobs:
           cmake --build build-ios-device --config Release -- \
                -sdk iphoneos CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
 
-      - name: 验证真机产物架构
+      - name: Verify device architecture
         run: |
           DEVICE_APP=$(find build-ios-device -path "*Release-iphoneos/neon-breaker.app" -type d | head -1)
-          test -n "$DEVICE_APP" || { echo "未找到真机 .app"; exit 1; }
+          test -n "$DEVICE_APP" || { echo "device .app not found"; exit 1; }
           file "$DEVICE_APP/neon-breaker"
 
-      - name: 打包模拟器 zip
+      - name: Package simulator zip
         run: |
           APP=$(find build-ios -path "*Release-iphonesimulator/neon-breaker.app" -type d | head -1)
-          test -n "$APP" || { echo "未找到模拟器 .app"; exit 1; }
+          test -n "$APP" || { echo "simulator .app not found"; exit 1; }
           mkdir -p "$APP/assets/fonts"
           cp -r assets/fonts/* "$APP/assets/fonts/"
           cd "$(dirname "$APP")"
           zip -r -y neon-breaker-ios-simulator.zip "$(basename "$APP")"
           mv neon-breaker-ios-simulator.zip "$GITHUB_WORKSPACE/"
 
-      - name: 打包未签名 IPA(Payload/ 结构)
+      - name: Package unsigned IPA (Payload/ layout)
         run: |
           DEVICE_APP=$(find build-ios-device -path "*Release-iphoneos/neon-breaker.app" -type d | head -1)
           mkdir -p pkg-ipa/Payload
@@ -252,7 +252,7 @@ jobs:
           if-no-files-found: error
 
   release:
-    name: 发布 GitHub Release
+    name: Release
     needs: [linux, windows, macos, android, ios]
     runs-on: ubuntu-latest
     permissions:
@@ -264,7 +264,7 @@ jobs:
           pattern: release-*
           merge-multiple: true
 
-      - name: 创建/更新 Release 并上传产物
+      - name: Create or update the release and upload artifacts
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

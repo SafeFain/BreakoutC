@@ -1,37 +1,72 @@
-# iOS 13+ 构建说明(Neon Breaker)
+# iOS 13+ build guide (Neon Breaker)
 
-> ⚠️ 本文件由 Linux 交叉开发环境编写,**未在真实 macOS/Xcode 上验证**。SDL3 的 iOS 支持成熟,但本工程尚未执行过 iOS 构建;以下步骤基于 SDL3 官方文档与源码模板。
+> **Status**: CI cross-compiles the game for the iOS simulator and the release workflow also produces an unsigned device build. The game has not been run on physical iOS hardware, and signing/App Store packaging is not configured.
 
-## 前置条件
+## Prerequisites
 
-- macOS + Xcode(iOS 13+ 部署目标)
-- 依赖源码:`tools/android/SDL-release-3.2.10/`(SDL3 源码含 Xcode 模板)
-
-## 构建步骤(参考)
-
-SDL3 官方 iOS 集成有两种方式,任选:
-
-### 方式 A:Xcode 工程(推荐)
-
-1. SDL3 源码自带 Xcode 工程:打开 `tools/android/SDL-release-3.2.10/Xcode/SDL/SDL.xcodeproj`(官方文档 `docs/README-ios.md`)
-2. 按 SDL3 官方步骤(SDL.xcodeproj 含 SDL3.xcframework target):把 SDL 工程加入你的 app 工程,或直接用 SDL3.xcframework 拖入
-2. 把本项目 `src/*.cpp|h` 加入 app target 编译源
-3. 链接:`libSDL3.a`(静态)+ `libSDL3_ttf.a` + `libfreetype.a` + SDL3 要求的系统框架(CoreGraphics、QuartzCore、UIKit、AVFoundation 等,按 SDL3 模板配置)
-4. 字体资源:把 `assets/fonts/NotoSansSC-Bold-subset.otf` 加入 bundle 的 `fonts/` 子目录(代码用 `SDL_GetBasePath() + "fonts/"` 加载;iOS 的 `SDL_GetBasePath` 返回 bundle 目录)
-5. 部署目标:iOS 13.0(`IPHONEOS_DEPLOYMENT_TARGET`)
-
-### 方式 B:CMake 交叉编译
+- macOS with Xcode (deployment target iOS 13+)
+- SDL3 and SDL3_ttf sources: `tools/android/SDL-release-3.2.10/` and `tools/android/SDL_ttf-release-3.2.2/`. Fetch them with:
 
 ```bash
-# 在 macOS 上,用 Xcode 的 iOS toolchain
-cmake -B build-ios -DCMAKE_SYSTEM_NAME=iOS \
-  -DCMAKE_OSX_SYSROOT=iphoneos \
-  -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
-  -DCMAKE_OSX_ARCHITECTURES=arm64
-# 然后按主 CMakeLists 的 IOS 分支接入 SDL3/SDL3_ttf 源码(与 ANDROID 分支同构)
+tools/android/fetch-deps.sh --no-ndk
 ```
 
-## Info.plist 要点
+The `--no-ndk` flag skips the ~660 MB Android NDK download; the iOS build only needs the SDL sources and the vendored FreeType tree that the script prepares.
+
+## Build with CMake (used by CI)
+
+The `IOS` branch in `CMakeLists.txt` builds SDL3, SDL3_ttf (with vendored FreeType), and the game into a `.app` bundle using [`assets/ios/Info.plist`](../../assets/ios/Info.plist).
+
+### Simulator (arm64 + x86_64)
+
+```bash
+cmake -G Xcode -B build-ios -DCMAKE_SYSTEM_NAME=iOS \
+  -DCMAKE_OSX_SYSROOT=iphonesimulator \
+  -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+cmake --build build-ios --config Release -- -sdk iphonesimulator
+```
+
+The bundle is written to `build-ios/Release-iphonesimulator/neon-breaker.app`.
+
+### Device (arm64, unsigned)
+
+```bash
+cmake -G Xcode -B build-ios-device -DCMAKE_SYSTEM_NAME=iOS \
+  -DCMAKE_OSX_SYSROOT=iphoneos \
+  -DCMAKE_OSX_ARCHITECTURES=arm64 \
+  -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED=NO
+cmake --build build-ios-device --config Release -- \
+  -sdk iphoneos CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+```
+
+The output is `build-ios-device/Release-iphoneos/neon-breaker.app`. Re-sign it with your own identity to install on a device.
+
+### Bundle resources
+
+Copy the bundled font into the app bundle so the game can find it at runtime:
+
+```bash
+APP=build-ios/Release-iphonesimulator/neon-breaker.app
+mkdir -p "$APP/assets/fonts"
+cp assets/fonts/*.otf "$APP/assets/fonts/"
+```
+
+At runtime the renderer checks `<bundle>/assets/fonts/`, then `<bundle>/fonts/`. If neither exists, it falls back to the system PingFang font.
+
+## Integration with an Xcode project (alternative)
+
+SDL3 ships an Xcode project in its source tree:
+
+1. Open `tools/android/SDL-release-3.2.10/Xcode/SDL/SDL.xcodeproj` (see the upstream `docs/README-ios.md`).
+2. Add the SDL Xcode project or the generated `SDL3.xcframework` to your app target.
+3. Add `src/*.cpp` and `src/*.h` to the app target.
+4. Link the static SDL3 / SDL3_ttf / FreeType libraries and the system frameworks required by SDL3 (UIKit, CoreGraphics, QuartzCore, AVFoundation, and others listed by the SDL template).
+5. Add `assets/fonts/NotoSansSC-Bold-subset.otf` to the bundle resources (`assets/fonts/` or `fonts/`).
+6. Set `IPHONEOS_DEPLOYMENT_TARGET=13.0`.
+
+## Info.plist
+
+The bundled [`assets/ios/Info.plist`](../../assets/ios/Info.plist) declares the landscape orientations used by the game:
 
 ```xml
 <key>UISupportedInterfaceOrientations</key>
@@ -39,16 +74,17 @@ cmake -B build-ios -DCMAKE_SYSTEM_NAME=iOS \
     <string>UIInterfaceOrientationLandscapeLeft</string>
     <string>UIInterfaceOrientationLandscapeRight</string>
 </array>
-<key>UIRequiresFullScreen</key><true/>
 ```
 
-## 输入/生命周期
+Add `UIRequiresFullScreen` (or the appropriate scene configuration) if your distribution requires it.
 
-- 触屏、UI 点击、切后台暂停、存档路径:与 Android 相同(SDL3 统一处理,代码已适配)
-- iOS 无实体返回键:UI 顶栏"暂停"按钮可用(代码已有)
+## Input and lifecycle
 
-## 已知限制(未验证项)
+- Touch input, UI taps, pause-on-background, and save paths behave the same as on Android; SDL3 handles them uniformly and the game code is already adapted.
+- iOS has no hardware back button; the pause button in the top bar covers that case.
 
-- 本环境无 macOS/Xcode,上述步骤与 `__IPHONEOS__` 代码分支(全屏标志、字体路径)未实测
-- 上架 App Store 需签名/公证与隐私声明(未配置)
-- 静态链接 SDL3_ttf 需要同时链接 freetype(建议复用 `tools/android/SDL_ttf-release-3.2.2` 的 vendored freetype 构建)
+## Known limitations
+
+- CI verifies simulator compilation and produces an unsigned device build; nothing has been run on physical hardware, so `__IPHONEOS__` code paths (fullscreen flags, font paths) are compile-tested only.
+- App Store distribution requires signing, notarization, and privacy declarations, none of which are configured.
+- Static SDL3_ttf requires FreeType; use the vendored FreeType tree prepared by `tools/android/fetch-deps.sh`.
